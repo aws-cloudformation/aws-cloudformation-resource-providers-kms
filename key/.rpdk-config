@@ -1,0 +1,15 @@
+{
+    "typeName": "AWS::KMS::Key",
+    "language": "java",
+    "runtime": "java8",
+    "entrypoint": "software.amazon.kms.key.HandlerWrapper::handleRequest",
+    "testEntrypoint": "software.amazon.kms.key.HandlerWrapper::testEntrypoint",
+    "settings": {
+        "namespace": [
+            "software",
+            "amazon",
+            "kms",
+            "key"
+        ]
+    }
+}
