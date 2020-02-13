@@ -1,0 +1,15 @@
+{
+    "typeName": "AWS::KMS::Alias",
+    "language": "java",
+    "runtime": "java8",
+    "entrypoint": "software.amazon.kms.alias.HandlerWrapper::handleRequest",
+    "testEntrypoint": "software.amazon.kms.alias.HandlerWrapper::testEntrypoint",
+    "settings": {
+        "namespace": [
+            "software",
+            "amazon",
+            "kms",
+            "alias"
+        ]
+    }
+}
