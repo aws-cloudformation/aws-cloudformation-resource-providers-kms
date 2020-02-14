@@ -19,8 +19,8 @@ import static software.amazon.kms.key.ReadHandler.getKeyMetadata;
 
 public class DeleteHandler extends BaseHandler<CallbackContext> {
     private static final String TIMED_OUT_MESSAGE = "Timed out waiting for key deletion";
-    final int stabilizationRetries = 12;
-    final int callbackDelaySeconds = 5; // polling every 5s up to a minute
+    private static final int STABILIZATION_RETRIES = 12;
+    private static final int CALLBACK_DELAY_SECONDS = 5; // polling every 5s up to a minute
     private Logger loggerClient = null;
 
     @Override
@@ -35,7 +35,7 @@ public class DeleteHandler extends BaseHandler<CallbackContext> {
 
         final CallbackContext currentContext = callbackContext == null ? CallbackContext
                 .builder()
-                .stabilizationRetriesRemaining(stabilizationRetries)
+                .stabilizationRetriesRemaining(STABILIZATION_RETRIES)
                 .build() : callbackContext;
 
         return deleteKeyAndUpdateProgress(model, proxy, currentContext);
@@ -91,7 +91,7 @@ public class DeleteHandler extends BaseHandler<CallbackContext> {
                                                                            final CallbackContext callbackContext) {
         return ProgressEvent.<ResourceModel, CallbackContext>builder()
                 .resourceModel(model)
-                .callbackDelaySeconds(callbackDelaySeconds)
+                .callbackDelaySeconds(CALLBACK_DELAY_SECONDS)
                 .callbackContext(CallbackContext.builder()
                         .keyProgress(callbackContext.getKeyProgress())
                         .stabilizationRetriesRemaining(callbackContext.getStabilizationRetriesRemaining() - 1)

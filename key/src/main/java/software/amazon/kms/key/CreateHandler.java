@@ -20,7 +20,7 @@ import static software.amazon.kms.key.UpdateHandler.updateKeyRotationStatus;
 import static software.amazon.kms.key.UpdateHandler.updateKeyStatus;
 
 public class CreateHandler extends BaseHandler<CallbackContext> {
-    final int callbackDelaySeconds = 60;
+    private static final int CALLBACK_DELAY_SECONDS = 60;
 
     @Override
     public ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -45,7 +45,7 @@ public class CreateHandler extends BaseHandler<CallbackContext> {
 
                 return ProgressEvent.<ResourceModel, CallbackContext>builder()
                         .resourceModel(model)
-                        .callbackDelaySeconds(callbackDelaySeconds)
+                        .callbackDelaySeconds(CALLBACK_DELAY_SECONDS)
                         .callbackContext(CallbackContext.builder().build())
                         .status(OperationStatus.IN_PROGRESS)
                         .build();
