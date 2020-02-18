@@ -1,8 +1,9 @@
 package software.amazon.kms.key;
 
-import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
+import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
+import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
@@ -75,6 +76,9 @@ public class DeleteHandler extends BaseHandler<CallbackContext> {
             throw new CfnInvalidRequestException(e.getMessage());
         } catch (KmsInternalException e) {
             throw new CfnInternalFailureException(e);
+        } catch (KmsInvalidStateException e) {
+            loggerClient.log(String.format("%s [%s] resource is already in pending deletion state", ResourceModel.TYPE_NAME, model.getKeyId()));
+            return KeyProgress.Deleted;
         }
     }
 
