@@ -1,5 +1,10 @@
 package software.amazon.kms.key;
 
+import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
+import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
+import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
@@ -10,6 +15,7 @@ import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
+import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
 import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.Tag;
@@ -20,6 +26,7 @@ import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,208 +47,78 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class ReadHandlerTest {
+public class ReadHandlerTest extends AbstractTestBase{
 
     @Mock
     private AmazonWebServicesClientProxy proxy;
 
     @Mock
-    private Logger logger;
+    private ProxyClient<KmsClient> proxyKmsClient;
+
+    @Mock
+    KmsClient kms;
 
     private ReadHandler handler;
-    private ResourceHandlerRequest<ResourceModel> request;
-
-    private static final String KEY_ID = "samplearn";
-    private static final String DESCRIPTION = "DESCRIPTION";
-    private static final Boolean ENABLED = true;
-    private static final Boolean ENABLE_KEY_ROTATION = true;
-    private static final Boolean KEY_ROTATION = true;
-    private static final String KEY_USAGE = KeyUsageType.ENCRYPT_DECRYPT.toString();
-    private static final KeyMetadata KEY_METADATA = KeyMetadata.builder()
-            .keyId(KEY_ID)
-            .description(DESCRIPTION)
-            .enabled(ENABLED)
-            .keyUsage(KEY_USAGE).build();
-    private static final String POLICY = "{\"foo\": \"bar\"}";
-    private static final String TAG_KEY = "key";
-    private static final String TAG_VALUE = "value";
 
     @BeforeEach
     public void setup() {
-        request = ResourceHandlerRequest.<ResourceModel>builder().desiredResourceState(ResourceModel.builder().keyId(KEY_ID).build()).build();
         handler = new ReadHandler();
-        proxy = mock(AmazonWebServicesClientProxy.class);
-        logger = mock(Logger.class);
+        kms = mock(KmsClient.class);
+        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
+        proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
+
+    @AfterEach
+    public void post_execute() {
+        verifyNoMoreInteractions(proxyKmsClient.client());
+    }
+
 
     @Test
     public void handleRequest_SimpleSuccess() {
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(KEY_ROTATION).build();
-        final GetKeyPolicyResponse keyPolicyResponse = GetKeyPolicyResponse.builder().policy(POLICY).build();
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder()
-                .tags(Collections.singletonList(Tag.builder().tagKey(TAG_KEY).tagValue(TAG_VALUE).build()))
-                .build();
+        final KeyMetadata keyMetadata = KeyMetadata.builder()
+            .keyId("sampleId")
+            .arn("sampleArn")
+            .build();
 
-        doReturn(describeKeyResponse,
-                keyPolicyResponse,
-                getKeyRotationStatusResponse,
-                listTagsForResourceResponse)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(), any());
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final Set<software.amazon.kms.key.Tag> tags = Collections.singleton(software.amazon.kms.key.Tag.builder().key(TAG_KEY).value(TAG_VALUE).build());
+        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy(null).build();
+        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class))).thenReturn(getKeyPolicyResponse);
 
-        final Map<String, Object> policyObject = new HashMap<>();
-        policyObject.put("foo", "bar");
+        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
+        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
 
-        final ResourceModel expectedModel = ResourceModel.builder()
-                .keyId(KEY_ID)
-                .description(DESCRIPTION)
-                .enabled(ENABLED)
-                .keyPolicy(policyObject)
-                .enableKeyRotation(ENABLE_KEY_ROTATION)
-                .keyUsage(KEY_USAGE)
-                .tags(tags)
-                .build();
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
 
-        final ProgressEvent<ResourceModel, CallbackContext> response =
-                handler.handleRequest(proxy, request, null, logger);
-
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.describeKeyRequest(KEY_ID)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.getKeyRotationStatusRequest(KEY_ID)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.getKeyPolicyRequest(KEY_ID)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.listResourceTagsRequest(KEY_ID)), any());
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+            .desiredResourceState(ResourceModel.builder()
+                .build())
+            .build();
+        final CallbackContext callbackContext = new CallbackContext();
+        callbackContext.setPartiallyPropagated(true);
+        callbackContext.setFullyPropagated(true);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
-        assertThat(response.getCallbackContext()).isNull();
+        assertThat(response.getCallbackContext()).isNotNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getCallbackContext().partiallyPropagated).isEqualTo(true);
+        assertThat(response.getCallbackContext().fullyPropagated).isEqualTo(true);
         assertThat(response.getResourceModels()).isNull();
-        assertThat(response.getResourceModel()).isEqualTo(expectedModel);
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
-    }
 
-    @Test
-    public void handleRequest_PolicyNullSuccess() {
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(KEY_ROTATION).build();
-        final GetKeyPolicyResponse keyPolicyResponse = GetKeyPolicyResponse.builder().policy(null).build();
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder()
-                .tags(Collections.singletonList(software.amazon.awssdk.services.kms.model.Tag.builder().tagKey(TAG_KEY).tagValue(TAG_VALUE).build()))
-                .build();
-
-        doReturn(describeKeyResponse,
-                keyPolicyResponse,
-                getKeyRotationStatusResponse,
-                listTagsForResourceResponse)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(), any());
-
-        final Set<software.amazon.kms.key.Tag> tags = Collections.singleton(software.amazon.kms.key.Tag.builder().key(TAG_KEY).value(TAG_VALUE).build());
-        final ResourceModel expectedModel = ResourceModel.builder()
-                .keyId(KEY_ID)
-                .description(DESCRIPTION)
-                .enabled(ENABLED)
-                .keyPolicy(null)
-                .enableKeyRotation(ENABLE_KEY_ROTATION)
-                .keyUsage(KEY_USAGE)
-                .tags(tags)
-                .build();
-
-        final ProgressEvent<ResourceModel, CallbackContext> response =
-                handler.handleRequest(proxy, request, null, logger);
-
-        assertThat(response).isNotNull();
-        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
-        assertThat(response.getCallbackContext()).isNull();
-        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
-        assertThat(response.getResourceModels()).isNull();
-        assertThat(response.getResourceModel()).isEqualTo(expectedModel);
-        assertThat(response.getMessage()).isNull();
-        assertThat(response.getErrorCode()).isNull();
-    }
-
-    @Test
-    public void handleRequest_PolicyNotFound() {
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
-
-        doReturn(describeKeyResponse).when(proxy)
-                .injectCredentialsAndInvokeV2(any(DescribeKeyRequest.class), any());
-
-        doThrow(NotFoundException.class)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(GetKeyPolicyRequest.class), any());
-
-        assertThrows(CfnNotFoundException.class,
-                () -> handler.handleRequest(proxy, request, null, logger));
-    }
-
-    @Test
-    public void handleRequest_KeyRotationInvalidArn() {
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
-
-        doReturn(describeKeyResponse,
-                getKeyPolicyResponse).when(proxy)
-                .injectCredentialsAndInvokeV2(any(), any());
-
-        doThrow(InvalidArnException.class)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(GetKeyRotationStatusRequest.class), any());
-
-        assertThrows(CfnInvalidRequestException.class,
-                () -> handler.handleRequest(proxy, request, null, logger));
-    }
-
-    @Test
-    public void handleRequest_KeyRotationNotFound() {
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
-
-        doReturn(describeKeyResponse,
-                getKeyPolicyResponse).when(proxy)
-                .injectCredentialsAndInvokeV2(any(), any());
-
-        doThrow(NotFoundException.class)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(GetKeyRotationStatusRequest.class), any());
-
-        assertThrows(CfnNotFoundException.class,
-                () -> handler.handleRequest(proxy, request, null, logger));
-    }
-
-    @Test
-    public void handleRequest_KeyInvalidArn() {
-        doThrow(InvalidArnException.class)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(DescribeKeyRequest.class), any());
-
-        assertThrows(CfnInvalidRequestException.class,
-                () -> handler.handleRequest(proxy, request, null, logger));
-    }
-
-    @Test
-    public void handleRequest_KeyKmsInternal() {
-        doThrow(KmsInternalException.class)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(DescribeKeyRequest.class), any());
-
-        assertThrows(CfnInternalFailureException.class,
-                () -> handler.handleRequest(proxy, request, null, logger));
-    }
-
-    @Test
-    public void handleRequest_KeyNotFound() {
-        doThrow(NotFoundException.class)
-                .when(proxy)
-                .injectCredentialsAndInvokeV2(any(DescribeKeyRequest.class), any());
-
-
-        assertThrows(CfnNotFoundException.class,
-                () -> handler.handleRequest(proxy, request, null, logger));
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
+        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
+        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
     }
 }

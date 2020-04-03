@@ -2,6 +2,8 @@ package software.amazon.kms.key;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
+import java.util.Optional;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
@@ -19,11 +21,9 @@ import software.amazon.awssdk.services.kms.model.TagResourceRequest;
 import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
 import software.amazon.awssdk.services.kms.model.Tag;
-import software.amazon.awssdk.utils.CollectionUtils;
 import software.amazon.cloudformation.exceptions.TerminalException;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,15 +48,15 @@ public class Translator {
     }
 
     // Read handler
-    static DescribeKeyRequest describeKeyRequest(final String keyId) {
+    static DescribeKeyRequest describeKeyRequest(final ResourceModel model) {
         return DescribeKeyRequest.builder()
-                .keyId(keyId)
+                .keyId(model.getKeyId())
                 .build();
     }
 
-    static GetKeyRotationStatusRequest getKeyRotationStatusRequest(final String keyId) {
+    static GetKeyRotationStatusRequest getKeyRotationStatusRequest(final ResourceModel model) {
         return GetKeyRotationStatusRequest.builder()
-                .keyId(keyId)
+                .keyId(model.getKeyId())
                 .build();
     }
 
@@ -67,26 +67,25 @@ public class Translator {
                 .build();
     }
 
-    static ListResourceTagsRequest listResourceTagsRequest(final String keyId) {
-        return ListResourceTagsRequest.builder().keyId(keyId).build();
+    static ListResourceTagsRequest listResourceTagsRequest(final ResourceModel model) {
+        return ListResourceTagsRequest.builder().keyId(model.getKeyId()).build();
     }
 
     // Update handler
-    static EnableKeyRotationRequest enableKeyRotationRequest(final String keyId) {
+    static EnableKeyRotationRequest enableKeyRotationRequest(final ResourceModel model) {
         return EnableKeyRotationRequest.builder()
-                .keyId(keyId).build();
+                .keyId(model.getKeyId()).build();
     }
 
-    static DisableKeyRotationRequest disableKeyRotationRequest(final String keyId) {
+    static DisableKeyRotationRequest disableKeyRotationRequest(final ResourceModel model) {
         return DisableKeyRotationRequest.builder()
-                .keyId(keyId).build();
+                .keyId(model.getKeyId()).build();
     }
 
-    static UpdateKeyDescriptionRequest updateKeyDescriptionRequest(final String keyId,
-                                                                   final String description) {
+    static UpdateKeyDescriptionRequest updateKeyDescriptionRequest(final ResourceModel model) {
         return UpdateKeyDescriptionRequest.builder()
-                .keyId(keyId)
-                .description(description).build();
+                .keyId(model.getKeyId())
+                .description(model.getDescription()).build();
     }
 
     static PutKeyPolicyRequest putKeyPolicyRequest(final ResourceModel resourceModel) {
@@ -102,10 +101,15 @@ public class Translator {
     }
 
     static UntagResourceRequest untagResourceRequest(final String keyId,
-                                                     final Collection<String> tags) {
+                                                     final Set<Tag> tags) {
         return UntagResourceRequest.builder()
                 .keyId(keyId)
-                .tagKeys(tags).build();
+                .tagKeys(
+                    tags
+                        .stream()
+                        .map(Tag::tagKey)
+                        .collect(Collectors.toSet())
+                ).build();
     }
 
     static TagResourceRequest tagResourceRequest(final String keyId,
@@ -129,36 +133,40 @@ public class Translator {
                 .build();
     }
 
-    static EnableKeyRequest enableKeyRequest(final String keyId) {
+    static EnableKeyRequest enableKeyRequest(final ResourceModel model) {
         return EnableKeyRequest.builder()
-                .keyId(keyId).build();
+                .keyId(model.getKeyId()).build();
     }
 
-    static DisableKeyRequest disableKeyRequest(final String keyId) {
+    static DisableKeyRequest disableKeyRequest(final ResourceModel model) {
         return DisableKeyRequest.builder()
-                .keyId(keyId).build();
+                .keyId(model.getKeyId()).build();
     }
 
     // Translate tags
-    static List<Tag> translateTagsToSdk(final Map<String, String> tags) {
-        if (tags == null) return null;
-        return tags.entrySet()
-                .stream()
-                .collect(Collectors.mapping(entry ->
-                        Tag.builder()
-                                .tagKey(entry.getKey())
-                                .tagValue(entry.getValue()).build(),
-                        Collectors.toList()));
+
+    static Set<Tag> translateTagsToSdk(final Map<String, String> tags) {
+        if (tags == null) return Collections.emptySet();
+        return Optional.of(tags.entrySet()).orElse(Collections.emptySet())
+            .stream()
+            .map(tag -> Tag.builder().tagKey(tag.getKey()).tagValue(tag.getValue()).build())
+            .collect(Collectors.toSet());
     }
 
-    static Set<software.amazon.kms.key.Tag> translateTagsFromSdk(final List<Tag> tags) {
-        if (CollectionUtils.isNullOrEmpty(tags)) return null;
-        return tags
-                .stream()
-                .collect(Collectors.mapping(entry ->
-                        software.amazon.kms.key.Tag.builder()
-                                .key(entry.tagKey())
-                                .value(entry.tagValue())
-                .build(), Collectors.toSet()));
+    static Set<software.amazon.kms.key.Tag> translateTagsFromSdk(final Collection<Tag> tags) {
+        return Optional.ofNullable(tags).orElse(Collections.emptySet())
+            .stream()
+            .map(tag -> software.amazon.kms.key.Tag.builder()
+                .key(tag.tagKey())
+                .value(tag.tagValue())
+                .build())
+            .collect(Collectors.toSet());
+    }
+
+    static Set<software.amazon.kms.key.Tag> mapToTags(final Map<String, String> tags) {
+        return Optional.of(tags.entrySet()).orElse(Collections.emptySet())
+            .stream()
+            .map(entry -> software.amazon.kms.key.Tag.builder().key(entry.getKey()).value(entry.getValue()).build())
+            .collect(Collectors.toSet());
     }
 }
