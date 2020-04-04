@@ -7,7 +7,7 @@ import software.amazon.cloudformation.proxy.StdCallbackContext;
 @lombok.ToString
 @lombok.EqualsAndHashCode(callSuper = true)
 public class CallbackContext extends StdCallbackContext {
-    protected boolean partiallyPropagated;
-    protected boolean fullyPropagated;
+    protected boolean keyEnabled;
+    protected boolean propagated;
     protected boolean keyStatusRotationUpdated;
 }

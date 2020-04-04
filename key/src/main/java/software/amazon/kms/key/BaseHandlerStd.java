@@ -36,15 +36,15 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       final ProxyClient<KmsClient> proxyClient,
       final ResourceModel model,
       final CallbackContext callbackContext,
-      final boolean enable) {
-    if (enable) {
-      return proxy.initiate("kms::update-custom-key-rotation", proxyClient, model, callbackContext)
+      final boolean enabled) {
+    if (enabled) {
+      return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
           .request(Translator::enableKeyRotationRequest)
           .call((enableKeyRotationRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(enableKeyRotationRequest, proxyInvocation.client()::enableKeyRotation))
           .progress();
     }
 
-    return proxy.initiate("kms::update-custom-key-rotation", proxyClient, model, callbackContext)
+    return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
         .request(Translator::disableKeyRotationRequest)
         .call((disableKeyRotationRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(disableKeyRotationRequest, proxyInvocation.client()::disableKeyRotation))
         .progress();
@@ -55,38 +55,31 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       final ProxyClient<KmsClient> proxyClient,
       final ResourceModel model,
       final CallbackContext callbackContext,
-      final boolean enable
+      final boolean enabled
   ) {
-    if (enable) {
-      return proxy.initiate("kms::enable-custom-key-status", proxyClient, model, callbackContext)
+    if (enabled) {
+      callbackContext.setKeyEnabled(true);
+      return proxy.initiate("kms::enable-key", proxyClient, model, callbackContext)
           .request(Translator::enableKeyRequest)
           .call((enableKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(enableKeyRequest, proxyInvocation.client()::enableKey))
-          .progress()
+          .progress(CALLBACK_DELAY_SECONDS);
           // changing key status from disabled -> enabled might affect rotation update since it's only possible on enabled key
           // if enabled state hasn't been propagated then rotation update might hit invalid state exception
           // 1 min is required for state propagation
-          .then(BaseHandlerStd::proparateState);
     }
 
-    return proxy.initiate("kms::disable-custom-key-status", proxyClient, model, callbackContext)
+    return proxy.initiate("kms::disable-key", proxyClient, model, callbackContext)
         .request(Translator::disableKeyRequest)
         .call((disableKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(disableKeyRequest, proxyInvocation.client()::disableKey))
         .progress();
   }
 
-  // propagation of the resource state
-  protected static ProgressEvent<ResourceModel, CallbackContext> proparateState(final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
-    final CallbackContext callbackContext = progressEvent.getCallbackContext();
-    if (callbackContext.isPartiallyPropagated()) return progressEvent;
-    callbackContext.setPartiallyPropagated(true);
-    return ProgressEvent.defaultInProgressHandler(callbackContext, CALLBACK_DELAY_SECONDS, progressEvent.getResourceModel());
-  }
-
   // final propagation before stack event is considered completed
-  protected static ProgressEvent<ResourceModel, CallbackContext> proparateResource(final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
+  protected static ProgressEvent<ResourceModel, CallbackContext> propagate(final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
     final CallbackContext callbackContext = progressEvent.getCallbackContext();
-    if (callbackContext.isFullyPropagated()) return progressEvent;
-    callbackContext.setFullyPropagated(true);
+    if (callbackContext.isPropagated()) return progressEvent;
+
+    callbackContext.setPropagated(true);
     return ProgressEvent.defaultInProgressHandler(callbackContext, CALLBACK_DELAY_SECONDS, progressEvent.getResourceModel());
   }
 }

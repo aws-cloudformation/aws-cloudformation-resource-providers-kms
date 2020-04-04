@@ -2,22 +2,16 @@ package software.amazon.kms.key;
 
 import static software.amazon.kms.key.ModelAdapter.setDefaults;
 
-import com.amazonaws.util.CollectionUtils;
 import com.google.common.collect.Sets;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
-import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
@@ -30,17 +24,15 @@ public class UpdateHandler extends BaseHandlerStd {
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
 
-        return proxy.initiate("kms::update-custom-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
+        return proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
             .request(Translator::describeKeyRequest)
-            .call((describeKeyRequest, proxyInvocation) -> {
-                return proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey);
-            })
+            .call((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
             .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) ->
                 updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context))
             .then(progress -> updateKeyDescription(proxy, proxyClient, progress))
             .then(progress -> updateKeyPolicy(proxy, proxyClient, progress))
             .then(progress -> tagResource(proxy, proxyClient, progress, request.getDesiredResourceTags()))
-            .then(BaseHandlerStd::proparateResource)
+            .then(BaseHandlerStd::propagate)
             .then(progress -> new ReadHandler().handleRequest(proxy, request, callbackContext, proxyClient, logger));
     }
 
@@ -70,7 +62,7 @@ public class UpdateHandler extends BaseHandlerStd {
 
         // if key is disabled then it needs to get enabled first and then update rotation if necessary
         // check if key has been enabled and propagated otherwise eventual inconsistency might occur and rotation status update might hit invalid state exception
-        if (!prevIsEnabled && currIsEnabled && !callbackContext.isPartiallyPropagated())  // enable key
+        if (!prevIsEnabled && currIsEnabled && !callbackContext.isKeyEnabled())  // enable key
             return updateKeyStatus(proxy, proxyClient, model, callbackContext, true);
 
         // update rotation if necessary
@@ -95,7 +87,7 @@ public class UpdateHandler extends BaseHandlerStd {
     ) {
         final String currDescription = progressEvent.getResourceModel().getDescription();
 
-        return proxy.initiate("kms::update-custom-key-description", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
+        return proxy.initiate("kms::update-key-description", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
             .request(Translator::updateKeyDescriptionRequest)
             .call((updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(updateKeyDescriptionRequest, proxyInvocation.client()::updateKeyDescription))
             .progress();
@@ -106,7 +98,7 @@ public class UpdateHandler extends BaseHandlerStd {
         final ProxyClient<KmsClient> proxyClient,
         final ProgressEvent<ResourceModel, CallbackContext> progressEvent
     ) {
-        return proxy.initiate("kms::update-custom-key-keypolicy", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
+        return proxy.initiate("kms::update-key-keypolicy", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
             .request(Translator::putKeyPolicyRequest)
             .call((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
             .progress();
@@ -118,7 +110,7 @@ public class UpdateHandler extends BaseHandlerStd {
         final ProgressEvent<ResourceModel, CallbackContext> progress,
         final Map<String, String> tags
     ) {
-        return proxy.initiate("rds::tag-custom-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+        return proxy.initiate("rds::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
             .request(Translator::listResourceTagsRequest)
             .call((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
             .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {

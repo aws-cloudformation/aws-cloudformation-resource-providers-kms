@@ -1,5 +1,6 @@
 package software.amazon.kms.key;
 
+import com.amazonaws.util.StringUtils;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -21,15 +22,17 @@ public class CreateHandler extends BaseHandlerStd {
 
       final Map<String, String> tags = request.getDesiredResourceTags();
 
-      return proxy.initiate("kms::create-custom-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
+      return proxy.initiate("kms::create-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
           .request((resourceModel) -> Translator.createCustomerMasterKey(resourceModel, tags))
           .call((createKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(createKeyRequest, proxyInvocation.client()::createKey))
           .done((createKeyRequest, createKeyResponse, proxyInvocation, model, context) -> {
+            if (!StringUtils.isNullOrEmpty(model.getKeyId()))
+              return ProgressEvent.progress(model, callbackContext);
+
             model.setKeyId(createKeyResponse.keyMetadata().keyId());
-            return ProgressEvent.progress(model, context);
+            // Wait for key state to propagate to other hosts
+            return ProgressEvent.defaultInProgressHandler(context, CALLBACK_DELAY_SECONDS, model);
           })
-          // propagate key state to notify other hosts
-          .then(BaseHandlerStd::proparateState)
           .then(progress -> {
             if(progress.getResourceModel().getEnableKeyRotation()) // update key rotation status (by default is disabled)
               updateKeyRotationStatus(proxy, proxyClient, progress.getResourceModel(), progress.getCallbackContext(), true);
@@ -41,7 +44,7 @@ public class CreateHandler extends BaseHandlerStd {
             return progress;
           })
           // final propagation to make sure all updates are reflected
-          .then(BaseHandlerStd::proparateResource)
+          .then(BaseHandlerStd::propagate)
           .then(progress -> new ReadHandler().handleRequest(proxy, request, callbackContext, proxyClient, logger));
     }
 }

@@ -3,9 +3,6 @@ package software.amazon.kms.key;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
-import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
-import software.amazon.awssdk.services.kms.model.DisabledException;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisableKeyResponse;
@@ -14,8 +11,6 @@ import software.amazon.awssdk.services.kms.model.DisableKeyRotationResponse;
 import software.amazon.awssdk.services.kms.model.DisableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyResponse;
 import software.amazon.awssdk.services.kms.model.EnableKeyRequest;
-import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
-import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
@@ -25,23 +20,14 @@ import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
-import software.amazon.awssdk.services.kms.model.KeyUsageType;
-import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.awssdk.services.kms.model.InvalidArnException;
-import software.amazon.awssdk.services.kms.model.NotFoundException;
-import software.amazon.awssdk.services.kms.model.MalformedPolicyDocumentException;
 import software.amazon.awssdk.services.kms.model.TagResourceRequest;
 import software.amazon.awssdk.services.kms.model.TagResourceResponse;
 import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
 import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
-import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
-import software.amazon.cloudformation.exceptions.CfnNotFoundException;
-import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
-import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -52,14 +38,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -95,6 +76,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_SimpleSuccess() {
+
         final KeyMetadata keyMetadata = KeyMetadata.builder()
             .keyId("sampleId")
             .arn("sampleArn")
@@ -140,15 +122,14 @@ public class UpdateHandlerTest extends AbstractTestBase{
                     .build())
             .build();
         final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setFullyPropagated(true);
+        callbackContext.setPropagated(true);
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackContext()).isNotNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
-        assertThat(response.getCallbackContext().partiallyPropagated).isEqualTo(false);
-        assertThat(response.getCallbackContext().fullyPropagated).isEqualTo(true);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
@@ -166,6 +147,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_InvalidRequest() {
+
         final KeyMetadata keyMetadata = KeyMetadata.builder()
             .keyId("sampleId")
             .arn("sampleArn")
@@ -231,8 +213,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
-        assertThat(response.getCallbackContext().partiallyPropagated).isEqualTo(true);
-        assertThat(response.getCallbackContext().fullyPropagated).isEqualTo(false);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(true);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(false);
         assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
@@ -292,8 +274,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
-        assertThat(response.getCallbackContext().partiallyPropagated).isEqualTo(false);
-        assertThat(response.getCallbackContext().fullyPropagated).isEqualTo(true);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(false);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
@@ -352,8 +334,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
-        assertThat(response.getCallbackContext().partiallyPropagated).isEqualTo(false);
-        assertThat(response.getCallbackContext().fullyPropagated).isEqualTo(true);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(false);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
@@ -410,8 +392,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
-        assertThat(response.getCallbackContext().partiallyPropagated).isEqualTo(false);
-        assertThat(response.getCallbackContext().fullyPropagated).isEqualTo(true);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(false);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
         assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();

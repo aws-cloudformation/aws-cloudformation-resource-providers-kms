@@ -18,7 +18,7 @@ public class DeleteHandler  extends BaseHandlerStd {
         final Logger logger) {
       final String keyId = request.getDesiredResourceState().getKeyId();
 
-      return proxy.initiate("kms::delete-custom-key", proxyClient, request.getDesiredResourceState(), callbackContext)
+      return proxy.initiate("kms::delete-key", proxyClient, request.getDesiredResourceState(), callbackContext)
           .request(Translator::scheduleKeyDeletionRequest)
           .call((scheduleKeyDeletionRequest, proxyInvocation) -> {
                   try {
