@@ -1,16 +1,13 @@
 package software.amazon.kms.key;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import software.amazon.kms.key.KeyStatus.KeyProgress;
+import software.amazon.cloudformation.proxy.StdCallbackContext;
 
-@Builder(toBuilder = true)
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class CallbackContext {
-    private KeyProgress keyProgress;
-    private int stabilizationRetriesRemaining;
+@lombok.Getter
+@lombok.Setter
+@lombok.ToString
+@lombok.EqualsAndHashCode(callSuper = true)
+public class CallbackContext extends StdCallbackContext {
+    protected boolean keyEnabled;
+    protected boolean propagated;
+    protected boolean keyStatusRotationUpdated;
 }

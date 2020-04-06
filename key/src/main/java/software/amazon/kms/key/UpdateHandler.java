@@ -1,179 +1,129 @@
 package software.amazon.kms.key;
 
-import com.amazonaws.util.CollectionUtils;
+import static software.amazon.kms.key.ModelAdapter.setDefaults;
+
 import com.google.common.collect.Sets;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
-import software.amazon.awssdk.services.kms.model.DisabledException;
-import software.amazon.awssdk.services.kms.model.InvalidArnException;
-import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.awssdk.services.kms.model.MalformedPolicyDocumentException;
-import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.Tag;
-import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
-import software.amazon.cloudformation.exceptions.CfnNotFoundException;
-import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
-import software.amazon.cloudformation.proxy.OperationStatus;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static software.amazon.kms.key.ModelAdapter.setDefaults;
-import static software.amazon.kms.key.ReadHandler.getKeyMetadata;
-import static software.amazon.kms.key.ReadHandler.getKeyRotationStatus;
-
-public class UpdateHandler extends BaseHandler<CallbackContext> {
-
-    private static final KmsClient kmsClient = ClientBuilder.getClient();
-    private static Logger loggerClient = null;
-
-    @Override
-    public ProgressEvent<ResourceModel, CallbackContext> handleRequest(
+public class UpdateHandler extends BaseHandlerStd {
+    protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
         final CallbackContext callbackContext,
+        final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
 
-        final ResourceModel model = setDefaults(request.getDesiredResourceState());
-        loggerClient = logger;
-
-        final KeyMetadata keyMetadata = getKeyMetadata(proxy, model.getKeyId());
-
-        updateKeyStatusAndRotation(model, proxy, keyMetadata);
-        updateKeyDescription(model, proxy, keyMetadata);
-        updateKeyPolicy(model, proxy);
-        updateKeyTags(model.getKeyId(), request.getDesiredResourceTags(), proxy);
-
-        model.setArn(keyMetadata.arn());
-
-        return ProgressEvent.<ResourceModel, CallbackContext>builder()
-                .resourceModel(model)
-                .status(OperationStatus.SUCCESS)
-                .build();
+        return proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
+            .request(Translator::describeKeyRequest)
+            .call((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
+            .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) ->
+                updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context))
+            .then(progress -> updateKeyDescription(proxy, proxyClient, progress))
+            .then(progress -> updateKeyPolicy(proxy, proxyClient, progress))
+            .then(progress -> tagResource(proxy, proxyClient, progress, request.getDesiredResourceTags()))
+            .then(BaseHandlerStd::propagate)
+            .then(progress -> new ReadHandler().handleRequest(proxy, request, callbackContext, proxyClient, logger));
     }
 
-    private void updateKeyStatusAndRotation(final ResourceModel model,
-                                            final AmazonWebServicesClientProxy proxyClient,
-                                            final KeyMetadata keyMetadata) {
+    private ProgressEvent<ResourceModel, CallbackContext> updateKeyStatusAndRotation(
+        final AmazonWebServicesClientProxy proxy,
+        final ProxyClient<KmsClient> proxyClient,
+        final ResourceModel model,
+        final KeyMetadata keyMetadata,
+        final CallbackContext callbackContext
+    ) {
+        if (callbackContext.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, callbackContext);
+
         final boolean prevIsEnabled = keyMetadata.enabled();
         final boolean currIsEnabled = model.getEnabled();
 
-        final boolean prevIsRotationEnabled = getKeyRotationStatus(proxyClient, model.getKeyId());
+        final boolean prevIsRotationEnabled = proxyClient.injectCredentialsAndInvokeV2(Translator.getKeyRotationStatusRequest(model), proxyClient.client()::getKeyRotationStatus).keyRotationEnabled();
         final boolean currIsRotationEnabled = model.getEnableKeyRotation();
 
         final boolean hasUpdatedStatus = prevIsEnabled ^ currIsEnabled;
         final boolean hasUpdatedRotation = prevIsRotationEnabled ^ currIsRotationEnabled;
 
         // if key is not being updated and is disabled then we cannot perform any updates on the key
-        if (!prevIsEnabled && !hasUpdatedStatus) // key stays disabled
-            throw new TerminalException("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
+        if (!prevIsEnabled && !hasUpdatedStatus && hasUpdatedRotation) // key stays disabled
+            throw new CfnInvalidRequestException(
+                "You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
 
-        // if key is being enabled then we need to enable it first and then update rotation if necessary
-        if (!prevIsEnabled && currIsEnabled) { // enable key
-            updateKeyStatus(model.getKeyId(), proxyClient, currIsEnabled);
-            loggerClient.log(String.format("%s [%s] was successfully enabled", ResourceModel.TYPE_NAME, model.getKeyId()));
-        }
+
+        // if key is disabled then it needs to get enabled first and then update rotation if necessary
+        // check if key has been enabled and propagated otherwise eventual inconsistency might occur and rotation status update might hit invalid state exception
+        if (!prevIsEnabled && currIsEnabled && !callbackContext.isKeyEnabled())  // enable key
+            return updateKeyStatus(proxy, proxyClient, model, callbackContext, true);
 
         // update rotation if necessary
-        if (hasUpdatedRotation) { // update rotation
-            updateKeyRotationStatus(model.getKeyId(), proxyClient, currIsRotationEnabled);
-            loggerClient.log(String.format("%s [%s] key rotation was successfully updated", ResourceModel.TYPE_NAME, model.getKeyId()));
-        }
+        if (hasUpdatedRotation)
+            updateKeyRotationStatus(proxy, proxyClient, model, callbackContext, currIsRotationEnabled);
+
 
         // disable the key if necessary
-        if (prevIsEnabled && !currIsEnabled) { // disable key
-            updateKeyStatus(model.getKeyId(), proxyClient, currIsEnabled);
-            loggerClient.log(String.format("%s [%s] was successfully disabled", ResourceModel.TYPE_NAME, model.getKeyId()));
-        }
+        // changing status from enabled to disabled wont affect other updates since they are possible with disabled key
+        // rotation update happens before disabling key
+        if (prevIsEnabled && !currIsEnabled) // disable key
+            updateKeyStatus(proxy, proxyClient, model, callbackContext, false);
+
+        callbackContext.setKeyStatusRotationUpdated(true);
+        return ProgressEvent.progress(model, callbackContext);
     }
 
-    public static void updateKeyStatus(final String keyId,
-                                       final AmazonWebServicesClientProxy proxyClient,
-                                       final boolean enable) {
-        try {
-            if (enable) {
-                proxyClient.injectCredentialsAndInvokeV2(Translator.enableKeyRequest(keyId), kmsClient::enableKey);
-                return;
-            }
-            proxyClient.injectCredentialsAndInvokeV2(Translator.disableKeyRequest(keyId), kmsClient::disableKey);
-        } catch (InvalidArnException e) {
-            throw new CfnInvalidRequestException(e.getMessage());
-        } catch (KmsInternalException e) {
-            throw new CfnInternalFailureException(e);
-        } catch (NotFoundException e) {
-            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, keyId);
-        }
+    private ProgressEvent<ResourceModel, CallbackContext> updateKeyDescription(
+        final AmazonWebServicesClientProxy proxy,
+        final ProxyClient<KmsClient> proxyClient,
+        final ProgressEvent<ResourceModel, CallbackContext> progressEvent
+    ) {
+        final String currDescription = progressEvent.getResourceModel().getDescription();
+
+        return proxy.initiate("kms::update-key-description", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
+            .request(Translator::updateKeyDescriptionRequest)
+            .call((updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(updateKeyDescriptionRequest, proxyInvocation.client()::updateKeyDescription))
+            .progress();
     }
 
-    public static void updateKeyRotationStatus(final String keyId,
-                                               final AmazonWebServicesClientProxy proxyClient,
-                                               final boolean enable) {
-        try {
-            if (enable) {
-                proxyClient.injectCredentialsAndInvokeV2(Translator.enableKeyRotationRequest(keyId), kmsClient::enableKeyRotation);
-                return;
-            }
-            proxyClient.injectCredentialsAndInvokeV2(Translator.disableKeyRotationRequest(keyId), kmsClient::disableKeyRotation);
-        } catch (DisabledException | InvalidArnException e) {
-            throw new CfnInvalidRequestException(e.getMessage());
-        } catch (KmsInternalException e) {
-            throw new CfnInternalFailureException(e);
-        } catch (NotFoundException e) {
-            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, keyId);
-        }
+    private ProgressEvent<ResourceModel, CallbackContext> updateKeyPolicy(
+        final AmazonWebServicesClientProxy proxy,
+        final ProxyClient<KmsClient> proxyClient,
+        final ProgressEvent<ResourceModel, CallbackContext> progressEvent
+    ) {
+        return proxy.initiate("kms::update-key-keypolicy", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
+            .request(Translator::putKeyPolicyRequest)
+            .call((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
+            .progress();
     }
 
-    private void updateKeyDescription(final ResourceModel model,
-                                      final AmazonWebServicesClientProxy proxyClient,
-                                      final KeyMetadata keyMetadata) {
-        final String prevDescription = keyMetadata.description();
-        final String currDescription = model.getDescription();
+    protected ProgressEvent<ResourceModel, CallbackContext> tagResource(
+        final AmazonWebServicesClientProxy proxy,
+        final ProxyClient<KmsClient> proxyClient,
+        final ProgressEvent<ResourceModel, CallbackContext> progress,
+        final Map<String, String> tags
+    ) {
+        return proxy.initiate("rds::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+            .request(Translator::listResourceTagsRequest)
+            .call((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
+            .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {
+                final Set<Tag> currentTags = Translator.translateTagsToSdk(tags);
 
-        final boolean hasUpdatedDescription = !prevDescription.equals(currDescription);
+                final Set<Tag> existingTags = new HashSet<>(listResourceTagsResponse.tags());
 
-        if (hasUpdatedDescription) {
-            try {
-                proxyClient.injectCredentialsAndInvokeV2(Translator.updateKeyDescriptionRequest(model.getKeyId(), currDescription), kmsClient::updateKeyDescription);
-            } catch (InvalidArnException e) {
-                throw new CfnInvalidRequestException(e.getMessage());
-            }
-            loggerClient.log(String.format("%s [%s] description was successfully updated", ResourceModel.TYPE_NAME, model.getKeyId()));
-        }
-    }
+                final Set<Tag> tagsToRemove = Sets.difference(existingTags, currentTags);
+                final Set<Tag> tagsToAdd = Sets.difference(currentTags, existingTags);
 
-    private void updateKeyPolicy(final ResourceModel model,
-                                 final AmazonWebServicesClientProxy proxyClient) {
-        try {
-            proxyClient.injectCredentialsAndInvokeV2(Translator.putKeyPolicyRequest(model), kmsClient::putKeyPolicy);
-            loggerClient.log(String.format("%s [%s] policy was successfully updated", ResourceModel.TYPE_NAME, model.getKeyId()));
-        } catch (NotFoundException e) {
-            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, model.getKeyId());
-        } catch (MalformedPolicyDocumentException e) {
-            throw new CfnInvalidRequestException(e);
-        }
-    }
-
-    private void updateKeyTags(final String keyId,
-                               final Map<String, String> tags,
-                               final AmazonWebServicesClientProxy proxyClient) {
-        final Set<Tag> newTags = tags == null ? Collections.emptySet() : Sets.newHashSet(Translator.translateTagsToSdk(tags));
-        final Set<Tag> existingTags = Sets.newHashSet(proxyClient.injectCredentialsAndInvokeV2(Translator.listResourceTagsRequest(keyId), kmsClient::listResourceTags).tags());
-        final List<String> toRemove = existingTags.stream()
-                .filter(tag -> !newTags.contains(tag))
-                .collect(Collectors.mapping(tag -> tag.tagKey(), Collectors.toList()));
-        final List<Tag> toAdd = newTags.stream()
-                .filter(tag -> !existingTags.contains(tag))
-                .collect(Collectors.toList());
-        if (!CollectionUtils.isNullOrEmpty(toRemove)) proxyClient.injectCredentialsAndInvokeV2(Translator.untagResourceRequest(keyId, toRemove), kmsClient::untagResource);
-        if (!CollectionUtils.isNullOrEmpty(toAdd)) proxyClient.injectCredentialsAndInvokeV2(Translator.tagResourceRequest(keyId, toAdd), kmsClient::tagResource);
-        loggerClient.log(String.format("%s [%s] tags were successfully updated", ResourceModel.TYPE_NAME, keyId));
+                proxyInvocation.injectCredentialsAndInvokeV2(Translator.untagResourceRequest(resourceModel.getKeyId(),tagsToRemove), proxyInvocation.client()::untagResource);
+                proxyInvocation.injectCredentialsAndInvokeV2(Translator.tagResourceRequest(resourceModel.getKeyId(), tagsToAdd), proxyInvocation.client()::tagResource);
+                return ProgressEvent.progress(resourceModel, context);
+            });
     }
 }

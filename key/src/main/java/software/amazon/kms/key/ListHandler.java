@@ -10,9 +10,6 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static software.amazon.kms.key.ReadHandler.describeCustomerMasterKey;
-import static software.amazon.kms.key.ReadHandler.getKeyMetadata;
-
 public class ListHandler extends BaseHandler<CallbackContext> {
 
     @Override
@@ -25,12 +22,8 @@ public class ListHandler extends BaseHandler<CallbackContext> {
         final ListKeysResponse listKeysResponse = proxy.injectCredentialsAndInvokeV2(Translator.listKeysRequest(request.getNextToken()), ClientBuilder.getClient()::listKeys);
 
         final List<ResourceModel> models = listKeysResponse
-                .keys()
-                .stream()
-                .collect(Collectors.mapping(key -> describeCustomerMasterKey(
-                        getKeyMetadata(proxy, key.keyId()),
-                        proxy
-                ), Collectors.toList()));
+            .keys()
+            .stream().map(key -> ResourceModel.builder().keyId(key.keyId()).build()).collect(Collectors.toList());
 
         return ProgressEvent.<ResourceModel, CallbackContext>builder()
                 .resourceModels(models)

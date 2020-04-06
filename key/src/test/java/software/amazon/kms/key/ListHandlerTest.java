@@ -72,36 +72,13 @@ public class ListHandlerTest {
                 .keys(Collections.singletonList(KeyListEntry.builder().keyId(KEY_ID).build()))
                 .nextMarker(NEXT_TOKEN).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(KEY_ROTATION).build();
-        final GetKeyPolicyResponse keyPolicyResponse = GetKeyPolicyResponse.builder().policy(POLICY).build();
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder()
-                .tags(Collections.singletonList(Tag.builder().tagKey(TAG_KEY).tagValue(TAG_VALUE).build()))
-                .build();
 
-        doReturn(listKeysResponse,
-                describeKeyResponse,
-                keyPolicyResponse,
-                getKeyRotationStatusResponse,
-                listTagsForResourceResponse)
+        doReturn(listKeysResponse)
                 .when(proxy)
                 .injectCredentialsAndInvokeV2(any(), any());
         final ResourceModel model = ResourceModel.builder().build();
 
-        final Set<software.amazon.kms.key.Tag> tags = Collections.singleton(software.amazon.kms.key.Tag.builder().key(TAG_KEY).value(TAG_VALUE).build());
-
-        final Map<String, Object> policyObject = new HashMap<>();
-        policyObject.put("foo", "bar");
-
-        final ResourceModel expectedModel = ResourceModel.builder()
-                .keyId(KEY_ID)
-                .description(DESCRIPTION)
-                .enabled(ENABLED)
-                .keyPolicy(policyObject)
-                .enableKeyRotation(ENABLE_KEY_ROTATION)
-                .keyUsage(KEY_USAGE)
-                .tags(tags)
-                .build();
+        final ResourceModel expectedModel = ResourceModel.builder().keyId(KEY_ID).build();
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(model)
@@ -111,10 +88,6 @@ public class ListHandlerTest {
             handler.handleRequest(proxy, request, null, logger);
 
         verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.listKeysRequest(null)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.describeKeyRequest(KEY_ID)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.getKeyPolicyRequest(KEY_ID)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.getKeyRotationStatusRequest(KEY_ID)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.listResourceTagsRequest(KEY_ID)), any());
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -126,5 +99,7 @@ public class ListHandlerTest {
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
         assertThat(response.getNextToken()).isEqualTo(NEXT_TOKEN);
+
+
     }
 }
