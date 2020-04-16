@@ -110,7 +110,7 @@ public class UpdateHandler extends BaseHandlerStd {
         final ProgressEvent<ResourceModel, CallbackContext> progress,
         final Map<String, String> tags
     ) {
-        return proxy.initiate("rds::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+        return proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
             .request(Translator::listResourceTagsRequest)
             .call((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
             .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {
