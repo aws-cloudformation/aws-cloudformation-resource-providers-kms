@@ -23,8 +23,8 @@ public class CreateHandler extends BaseHandlerStd {
       final Map<String, String> tags = request.getDesiredResourceTags();
 
       return proxy.initiate("kms::create-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
-          .request((resourceModel) -> Translator.createCustomerMasterKey(resourceModel, tags))
-          .call((createKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(createKeyRequest, proxyInvocation.client()::createKey))
+          .translateToServiceRequest((resourceModel) -> Translator.createCustomerMasterKey(resourceModel, tags))
+          .makeServiceCall((createKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(createKeyRequest, proxyInvocation.client()::createKey))
           .done((createKeyRequest, createKeyResponse, proxyInvocation, model, context) -> {
             if (!StringUtils.isNullOrEmpty(model.getKeyId()))
               return ProgressEvent.progress(model, callbackContext);

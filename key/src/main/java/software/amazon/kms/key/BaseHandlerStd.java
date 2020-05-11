@@ -39,14 +39,14 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       final boolean enabled) {
     if (enabled) {
       return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
-          .request(Translator::enableKeyRotationRequest)
-          .call((enableKeyRotationRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(enableKeyRotationRequest, proxyInvocation.client()::enableKeyRotation))
+          .translateToServiceRequest(Translator::enableKeyRotationRequest)
+          .makeServiceCall((enableKeyRotationRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(enableKeyRotationRequest, proxyInvocation.client()::enableKeyRotation))
           .progress();
     }
 
     return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
-        .request(Translator::disableKeyRotationRequest)
-        .call((disableKeyRotationRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(disableKeyRotationRequest, proxyInvocation.client()::disableKeyRotation))
+        .translateToServiceRequest(Translator::disableKeyRotationRequest)
+        .makeServiceCall((disableKeyRotationRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(disableKeyRotationRequest, proxyInvocation.client()::disableKeyRotation))
         .progress();
   }
 
@@ -60,8 +60,8 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
     if (enabled) {
       callbackContext.setKeyEnabled(true);
       return proxy.initiate("kms::enable-key", proxyClient, model, callbackContext)
-          .request(Translator::enableKeyRequest)
-          .call((enableKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(enableKeyRequest, proxyInvocation.client()::enableKey))
+          .translateToServiceRequest(Translator::enableKeyRequest)
+          .makeServiceCall((enableKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(enableKeyRequest, proxyInvocation.client()::enableKey))
           .progress(CALLBACK_DELAY_SECONDS);
           // changing key status from disabled -> enabled might affect rotation update since it's only possible on enabled key
           // if enabled state hasn't been propagated then rotation update might hit invalid state exception
@@ -69,8 +69,8 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
     }
 
     return proxy.initiate("kms::disable-key", proxyClient, model, callbackContext)
-        .request(Translator::disableKeyRequest)
-        .call((disableKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(disableKeyRequest, proxyInvocation.client()::disableKey))
+        .translateToServiceRequest(Translator::disableKeyRequest)
+        .makeServiceCall((disableKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(disableKeyRequest, proxyInvocation.client()::disableKey))
         .progress();
   }
 

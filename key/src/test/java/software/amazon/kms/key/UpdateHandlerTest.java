@@ -40,6 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -70,6 +71,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
     @AfterEach
     public void post_execute() {
+        verify(kms, atLeastOnce()).serviceName();
         verifyNoMoreInteractions(proxyKmsClient.client());
     }
 
@@ -173,7 +175,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
         } catch (CfnInvalidRequestException e) {
-            assertThat(e.getMessage()).isEqualTo("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
+            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
         }
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
