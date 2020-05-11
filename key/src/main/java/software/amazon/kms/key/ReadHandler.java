@@ -27,8 +27,8 @@ public class ReadHandler extends BaseHandlerStd {
         final Logger logger) {
 
         return proxy.initiate("kms::describe-key", proxyClient, request.getDesiredResourceState(), callbackContext)
-            .request(Translator::describeKeyRequest)
-            .call((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
+            .translateToServiceRequest(Translator::describeKeyRequest)
+            .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
             .done((describeKeyRequest, describeKeyResponse, proxyInvocation, resourceModel, context) -> {
                 final KeyMetadata keyMetadata = describeKeyResponse.keyMetadata();
 

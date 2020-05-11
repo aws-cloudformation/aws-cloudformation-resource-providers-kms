@@ -19,8 +19,8 @@ public class DeleteHandler  extends BaseHandlerStd {
       final String keyId = request.getDesiredResourceState().getKeyId();
 
       return proxy.initiate("kms::delete-key", proxyClient, request.getDesiredResourceState(), callbackContext)
-          .request(Translator::scheduleKeyDeletionRequest)
-          .call((scheduleKeyDeletionRequest, proxyInvocation) -> {
+          .translateToServiceRequest(Translator::scheduleKeyDeletionRequest)
+          .makeServiceCall((scheduleKeyDeletionRequest, proxyInvocation) -> {
                   try {
                       return proxyInvocation.injectCredentialsAndInvokeV2(scheduleKeyDeletionRequest,
                           proxyInvocation.client()::scheduleKeyDeletion);
