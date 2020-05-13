@@ -20,17 +20,13 @@ public class DeleteHandler  extends BaseHandlerStd {
 
       return proxy.initiate("kms::delete-key", proxyClient, request.getDesiredResourceState(), callbackContext)
           .translateToServiceRequest(Translator::scheduleKeyDeletionRequest)
-          .makeServiceCall((scheduleKeyDeletionRequest, proxyInvocation) -> {
-                  try {
-                      return proxyInvocation.injectCredentialsAndInvokeV2(scheduleKeyDeletionRequest,
-                          proxyInvocation.client()::scheduleKeyDeletion);
-                  } catch (KmsInvalidStateException e) { // if key was scheduled for deletion outside of the stack
-                    return null;
-                  }
-              }
-          )
-          .stabilize((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, proxyInvocation, model, context) ->
-              isDeleted(proxyInvocation, model))
+          .makeServiceCall((scheduleKeyDeletionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(scheduleKeyDeletionRequest, proxyInvocation.client()::scheduleKeyDeletion))
+          .stabilize((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, proxyInvocation, model, context) -> isDeleted(proxyInvocation, model))
+          .handleError((scheduleKeyDeletionRequest, exception, proxyInvocation, resourceModel, context) -> {
+            if (exception instanceof KmsInvalidStateException)
+              return ProgressEvent.success(resourceModel, context);
+            throw exception;
+          })
           .success();
     }
 
