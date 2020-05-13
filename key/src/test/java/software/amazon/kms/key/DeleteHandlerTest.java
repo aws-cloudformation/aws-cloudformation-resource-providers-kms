@@ -5,11 +5,13 @@ import org.junit.jupiter.api.AfterEach;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
+import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionResponse;
+import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -22,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -88,19 +91,11 @@ public class DeleteHandlerTest extends AbstractTestBase{
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
     }
 
-
     @Test
     public void handleRequest_SimpleSuccessNotFound() {
         final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse = ScheduleKeyDeletionResponse.builder().build();
         when(proxyKmsClient.client().scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class)))
             .thenThrow(KmsInvalidStateException.class);
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(
-            KeyMetadata.builder()
-                .keyState(KeyState.PENDING_DELETION)
-                .build()
-        ).build();
-        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(ResourceModel.builder()
@@ -118,6 +113,21 @@ public class DeleteHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyKmsClient.client()).scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class));
-        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    @Test
+    public void handleRequest_SimpleSuccessInvalidArn() {
+        when(proxyKmsClient.client().scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class)))
+            .thenThrow(InvalidArnException.class);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+            .desiredResourceState(ResourceModel.builder()
+                .build())
+            .build();
+
+        assertThrows(TerminalException.class,
+            () ->handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
+
+        verify(proxyKmsClient.client()).scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class));
     }
 }
