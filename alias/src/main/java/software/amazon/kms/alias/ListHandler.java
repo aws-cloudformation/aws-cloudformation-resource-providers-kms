@@ -1,6 +1,7 @@
 package software.amazon.kms.alias;
 
 import com.google.common.collect.Lists;
+import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.ListAliasesResponse;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
@@ -12,20 +13,20 @@ import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.OperationStatus;
+import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class ListHandler extends BaseHandler<CallbackContext> {
-
-    @Override
-    public ProgressEvent<ResourceModel, CallbackContext> handleRequest(
-            final AmazonWebServicesClientProxy proxy,
-            final ResourceHandlerRequest<ResourceModel> request,
-            final CallbackContext callbackContext,
-            final Logger logger) {
+public class ListHandler extends BaseHandlerStd {
+    protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
+        final AmazonWebServicesClientProxy proxy,
+        final ResourceHandlerRequest<ResourceModel> request,
+        final CallbackContext callbackContext,
+        final ProxyClient<KmsClient> proxyClient,
+        final Logger logger) {
 
         final ResourceModel model = request.getDesiredResourceState();
 
@@ -33,7 +34,7 @@ public class ListHandler extends BaseHandler<CallbackContext> {
             List<ResourceModel> models = Lists.newArrayList();
             final ListAliasesResponse response = proxy.injectCredentialsAndInvokeV2(
                     Translator.listAliasesRequest(model.getTargetKeyId(), request.getNextToken()),
-                    ClientBuilder.getClient()::listAliases);
+                    proxyClient.client()::listAliases);
             response.aliases().stream().map(Translator::translateToResourceModel).collect(Collectors.toCollection(() -> models));
 
             return ProgressEvent.<ResourceModel, CallbackContext>builder()
