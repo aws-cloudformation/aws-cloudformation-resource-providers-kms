@@ -1,6 +1,9 @@
 package software.amazon.kms.key;
 
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.KeyMetadata;
+import software.amazon.awssdk.services.kms.model.KeyState;
+import software.amazon.cloudformation.exceptions.ResourceNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -30,6 +33,11 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       CallbackContext callbackContext,
       ProxyClient<KmsClient> proxyClient,
       Logger logger);
+
+  protected void notFoundCheck(final KeyMetadata keyMetadata) {
+    if (keyMetadata.keyState() == KeyState.PENDING_DELETION)
+      throw new ResourceNotFoundException(ResourceModel.TYPE_NAME, keyMetadata.keyId());
+  }
 
   protected static ProgressEvent<ResourceModel, CallbackContext> updateKeyRotationStatus(
       final AmazonWebServicesClientProxy proxy,

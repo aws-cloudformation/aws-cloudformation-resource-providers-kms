@@ -21,11 +21,6 @@ public class AbstractTestBase {
   protected static final org.slf4j.Logger delegate;
   protected static final LoggerProxy logger;
 
-
-  protected static final String DESCRIPTION;
-  protected static final String FAMILY;
-  protected static final Set<Tag> TAG_SET;
-
   static {
     System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
     System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "HH:mm:ss:SSS Z");
@@ -33,10 +28,6 @@ public class AbstractTestBase {
 
     delegate = LoggerFactory.getLogger("testing");
     logger = new LoggerProxy();
-
-    DESCRIPTION = "sample description";
-    FAMILY = "default.aurora.5";
-    TAG_SET = Sets.newSet(Tag.builder().key("key").value("value").build());
   }
 
   static ProxyClient<KmsClient> MOCK_PROXY(
