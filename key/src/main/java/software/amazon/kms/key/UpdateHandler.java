@@ -27,8 +27,10 @@ public class UpdateHandler extends BaseHandlerStd {
         return proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
             .translateToServiceRequest(Translator::describeKeyRequest)
             .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
-            .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) ->
-                updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context))
+            .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
+                notFoundCheck(describeKeyResponse.keyMetadata());
+                return updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context);
+            })
             .then(progress -> updateKeyDescription(proxy, proxyClient, progress))
             .then(progress -> updateKeyPolicy(proxy, proxyClient, progress))
             .then(progress -> tagResource(proxy, proxyClient, progress, request.getDesiredResourceTags()))

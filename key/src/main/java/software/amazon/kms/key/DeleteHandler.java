@@ -4,6 +4,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -24,10 +25,10 @@ public class DeleteHandler extends BaseHandlerStd {
           .stabilize((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, proxyInvocation, model, context) -> isDeleted(proxyInvocation, model))
           .handleError((scheduleKeyDeletionRequest, exception, proxyInvocation, resourceModel, context) -> {
             if (exception instanceof KmsInvalidStateException)
-              return ProgressEvent.success(resourceModel, context);
+              return ProgressEvent.defaultFailureHandler(exception, HandlerErrorCode.NotFound);
             throw exception;
           })
-          .success();
+          .done((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, client, model, context) -> ProgressEvent.defaultSuccessHandler(model));
     }
 
     private boolean isDeleted(

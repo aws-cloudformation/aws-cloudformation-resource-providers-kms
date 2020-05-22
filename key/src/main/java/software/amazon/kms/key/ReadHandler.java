@@ -32,6 +32,8 @@ public class ReadHandler extends BaseHandlerStd {
             .done((describeKeyRequest, describeKeyResponse, proxyInvocation, resourceModel, context) -> {
                 final KeyMetadata keyMetadata = describeKeyResponse.keyMetadata();
 
+                notFoundCheck(keyMetadata);
+
                 final String arn = keyMetadata.arn();
                 final String keyId = keyMetadata.keyId();
                 final String description = keyMetadata.description();
@@ -43,7 +45,7 @@ public class ReadHandler extends BaseHandlerStd {
 
                 final ListResourceTagsResponse listResourceTagsResponse = proxyInvocation.injectCredentialsAndInvokeV2(Translator.listResourceTagsRequest(resourceModel), proxyInvocation.client()::listResourceTags);
                 final Set<Tag> tags = Translator.translateTagsFromSdk(listResourceTagsResponse.tags());
-                return ProgressEvent.success(ResourceModel.builder()
+                return ProgressEvent.defaultSuccessHandler(ResourceModel.builder()
                     .arn(arn)
                     .keyId(keyId)
                     .description(description)
@@ -51,7 +53,7 @@ public class ReadHandler extends BaseHandlerStd {
                     .keyPolicy(policyKey)
                     .enableKeyRotation(keyRotationEnabled)
                     .keyUsage(keyMetadata.keyUsageAsString())
-                    .tags(tags).build(), context);
+                    .tags(tags).build());
             });
     }
 
