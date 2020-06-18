@@ -112,9 +112,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final TagResourceResponse tagResourceResponse = TagResourceResponse.builder().build();
         when(proxyKmsClient.client().tagResource(any(TagResourceRequest.class))).thenReturn(tagResourceResponse);
 
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy("{\"foo\": \"bar\"}").build();
-        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class))).thenReturn(getKeyPolicyResponse);
-
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(
@@ -135,15 +132,14 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(proxyKmsClient.client(), times(2)).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client(), times(2)).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
+        verify(proxyKmsClient.client(), times(1)).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client(), times(1)).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
         verify(proxyKmsClient.client()).disableKey(any(DisableKeyRequest.class));
         verify(proxyKmsClient.client()).updateKeyDescription(any(UpdateKeyDescriptionRequest.class));
         verify(proxyKmsClient.client()).putKeyPolicy(any(PutKeyPolicyRequest.class));
-        verify(proxyKmsClient.client(), times(2)).listResourceTags(any(ListResourceTagsRequest.class));
+        verify(proxyKmsClient.client(), times(1)).listResourceTags(any(ListResourceTagsRequest.class));
         verify(proxyKmsClient.client()).untagResource(any(UntagResourceRequest.class));
         verify(proxyKmsClient.client()).tagResource(any(TagResourceRequest.class));
-        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
     }
 
     @Test

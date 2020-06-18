@@ -146,18 +146,6 @@ public class CreateHandlerTest extends AbstractTestBase{
             .build();
         when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
-
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy("{\"foo\": \"bar\"}").build();
-        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class))).thenReturn(getKeyPolicyResponse);
-
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
-
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
-        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
-
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(ResourceModel.builder()
                 .keyId("sampleId")
@@ -176,9 +164,5 @@ public class CreateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyKmsClient.client()).createKey(any(CreateKeyRequest.class));
-        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
-        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
-        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
     }
 }

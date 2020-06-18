@@ -24,18 +24,40 @@ public class UpdateHandler extends BaseHandlerStd {
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
 
-        return proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
-            .translateToServiceRequest(Translator::describeKeyRequest)
-            .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
-            .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
-                notFoundCheck(describeKeyResponse.keyMetadata());
-                return updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context);
-            })
-            .then(progress -> updateKeyDescription(proxy, proxyClient, progress))
-            .then(progress -> updateKeyPolicy(proxy, proxyClient, progress))
-            .then(progress -> tagResource(proxy, proxyClient, progress, request.getDesiredResourceTags()))
-            .then(BaseHandlerStd::propagate)
-            .then(progress -> new ReadHandler().handleRequest(proxy, request, callbackContext, proxyClient, logger));
+        return ProgressEvent.progress(setDefaults(request.getDesiredResourceState()), callbackContext)
+                .then(progress -> proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
+                        .translateToServiceRequest(Translator::describeKeyRequest)
+                        .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
+                        .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
+                            notFoundCheck(describeKeyResponse.keyMetadata());
+                            return updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context);
+                        })
+                )
+                .then(progress -> proxy.initiate("kms::update-key-description", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                        .translateToServiceRequest(Translator::updateKeyDescriptionRequest)
+                        .makeServiceCall((updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(updateKeyDescriptionRequest, proxyInvocation.client()::updateKeyDescription))
+                        .progress())
+                .then(progress -> proxy.initiate("kms::update-key-keypolicy", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                        .translateToServiceRequest(Translator::putKeyPolicyRequest)
+                        .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
+                        .progress())
+                .then(progress -> proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                        .translateToServiceRequest(Translator::listResourceTagsRequest)
+                        .makeServiceCall((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
+                        .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {
+                            final Set<Tag> currentTags = Translator.translateTagsToSdk(request.getDesiredResourceTags());
+
+                            final Set<Tag> existingTags = new HashSet<>(listResourceTagsResponse.tags());
+
+                            final Set<Tag> tagsToRemove = Sets.difference(existingTags, currentTags);
+                            final Set<Tag> tagsToAdd = Sets.difference(currentTags, existingTags);
+
+                            proxyInvocation.injectCredentialsAndInvokeV2(Translator.untagResourceRequest(resourceModel.getKeyId(),tagsToRemove), proxyInvocation.client()::untagResource);
+                            proxyInvocation.injectCredentialsAndInvokeV2(Translator.tagResourceRequest(resourceModel.getKeyId(), tagsToAdd), proxyInvocation.client()::tagResource);
+                            return ProgressEvent.progress(resourceModel, context);
+                        }))
+                .then(BaseHandlerStd::propagate)
+                .then(progress -> ProgressEvent.defaultSuccessHandler(progress.getResourceModel()));
     }
 
     private ProgressEvent<ResourceModel, CallbackContext> updateKeyStatusAndRotation(
@@ -80,52 +102,5 @@ public class UpdateHandler extends BaseHandlerStd {
 
         callbackContext.setKeyStatusRotationUpdated(true);
         return ProgressEvent.progress(model, callbackContext);
-    }
-
-    private ProgressEvent<ResourceModel, CallbackContext> updateKeyDescription(
-        final AmazonWebServicesClientProxy proxy,
-        final ProxyClient<KmsClient> proxyClient,
-        final ProgressEvent<ResourceModel, CallbackContext> progressEvent
-    ) {
-        final String currDescription = progressEvent.getResourceModel().getDescription();
-
-        return proxy.initiate("kms::update-key-description", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
-            .translateToServiceRequest(Translator::updateKeyDescriptionRequest)
-            .makeServiceCall((updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(updateKeyDescriptionRequest, proxyInvocation.client()::updateKeyDescription))
-            .progress();
-    }
-
-    private ProgressEvent<ResourceModel, CallbackContext> updateKeyPolicy(
-        final AmazonWebServicesClientProxy proxy,
-        final ProxyClient<KmsClient> proxyClient,
-        final ProgressEvent<ResourceModel, CallbackContext> progressEvent
-    ) {
-        return proxy.initiate("kms::update-key-keypolicy", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
-            .translateToServiceRequest(Translator::putKeyPolicyRequest)
-            .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
-            .progress();
-    }
-
-    protected ProgressEvent<ResourceModel, CallbackContext> tagResource(
-        final AmazonWebServicesClientProxy proxy,
-        final ProxyClient<KmsClient> proxyClient,
-        final ProgressEvent<ResourceModel, CallbackContext> progress,
-        final Map<String, String> tags
-    ) {
-        return proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
-            .translateToServiceRequest(Translator::listResourceTagsRequest)
-            .makeServiceCall((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
-            .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {
-                final Set<Tag> currentTags = Translator.translateTagsToSdk(tags);
-
-                final Set<Tag> existingTags = new HashSet<>(listResourceTagsResponse.tags());
-
-                final Set<Tag> tagsToRemove = Sets.difference(existingTags, currentTags);
-                final Set<Tag> tagsToAdd = Sets.difference(currentTags, existingTags);
-
-                proxyInvocation.injectCredentialsAndInvokeV2(Translator.untagResourceRequest(resourceModel.getKeyId(),tagsToRemove), proxyInvocation.client()::untagResource);
-                proxyInvocation.injectCredentialsAndInvokeV2(Translator.tagResourceRequest(resourceModel.getKeyId(), tagsToAdd), proxyInvocation.client()::tagResource);
-                return ProgressEvent.progress(resourceModel, context);
-            });
     }
 }

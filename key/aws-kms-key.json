@@ -89,6 +89,9 @@
   "createOnlyProperties": [
     "/properties/KeyUsage"
   ],
+  "writeOnlyProperties": [
+    "/properties/PendingWindowInDays"
+  ],
   "handlers": {
     "create": {
       "permissions": [
