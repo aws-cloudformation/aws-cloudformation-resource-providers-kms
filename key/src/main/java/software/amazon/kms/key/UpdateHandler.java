@@ -4,10 +4,8 @@ import static software.amazon.kms.key.ModelAdapter.setDefaults;
 
 import com.google.common.collect.Sets;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -30,7 +28,39 @@ public class UpdateHandler extends BaseHandlerStd {
                         .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
                         .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
                             notFoundCheck(describeKeyResponse.keyMetadata());
-                            return updateKeyStatusAndRotation(proxy, proxyInvocation, model, describeKeyResponse.keyMetadata(), context);
+
+                            if (context.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, context);
+
+                            final boolean prevIsEnabled = describeKeyResponse.keyMetadata().enabled();
+                            final boolean currIsEnabled = model.getEnabled();
+
+                            final boolean prevIsRotationEnabled = proxyInvocation.injectCredentialsAndInvokeV2(Translator.getKeyRotationStatusRequest(model), proxyInvocation.client()::getKeyRotationStatus).keyRotationEnabled();
+                            final boolean currIsRotationEnabled = model.getEnableKeyRotation();
+
+                            final boolean hasUpdatedStatus = prevIsEnabled ^ currIsEnabled;
+                            final boolean hasUpdatedRotation = prevIsRotationEnabled ^ currIsRotationEnabled;
+
+                            // if key is not being updated and is disabled then we cannot perform any updates on the key
+                            if (!prevIsEnabled && !hasUpdatedStatus && hasUpdatedRotation) // key stays disabled
+                                throw new CfnInvalidRequestException("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
+
+                            // if key is disabled then it needs to get enabled first and then update rotation if necessary
+                            // check if key has been enabled and propagated otherwise eventual inconsistency might occur and rotation status update might hit invalid state exception
+                            if (!prevIsEnabled && currIsEnabled && !context.isKeyEnabled())  // enable key
+                                return updateKeyStatus(proxy, proxyInvocation, model, context, true);
+
+                            // update rotation if necessary
+                            if (hasUpdatedRotation)
+                                updateKeyRotationStatus(proxy, proxyInvocation, model, context, currIsRotationEnabled);
+
+                            // disable the key if necessary
+                            // changing status from enabled to disabled wont affect other updates since they are possible with disabled key
+                            // rotation update happens before disabling key
+                            if (prevIsEnabled && !currIsEnabled) // disable key
+                                updateKeyStatus(proxy, proxyInvocation, model, context, false);
+
+                            context.setKeyStatusRotationUpdated(true);
+                            return ProgressEvent.progress(model, context);
                         })
                 )
                 .then(progress -> proxy.initiate("kms::update-key-description", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
@@ -58,49 +88,5 @@ public class UpdateHandler extends BaseHandlerStd {
                         }))
                 .then(BaseHandlerStd::propagate)
                 .then(progress -> ProgressEvent.defaultSuccessHandler(progress.getResourceModel()));
-    }
-
-    private ProgressEvent<ResourceModel, CallbackContext> updateKeyStatusAndRotation(
-        final AmazonWebServicesClientProxy proxy,
-        final ProxyClient<KmsClient> proxyClient,
-        final ResourceModel model,
-        final KeyMetadata keyMetadata,
-        final CallbackContext callbackContext
-    ) {
-        if (callbackContext.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, callbackContext);
-
-        final boolean prevIsEnabled = keyMetadata.enabled();
-        final boolean currIsEnabled = model.getEnabled();
-
-        final boolean prevIsRotationEnabled = proxyClient.injectCredentialsAndInvokeV2(Translator.getKeyRotationStatusRequest(model), proxyClient.client()::getKeyRotationStatus).keyRotationEnabled();
-        final boolean currIsRotationEnabled = model.getEnableKeyRotation();
-
-        final boolean hasUpdatedStatus = prevIsEnabled ^ currIsEnabled;
-        final boolean hasUpdatedRotation = prevIsRotationEnabled ^ currIsRotationEnabled;
-
-        // if key is not being updated and is disabled then we cannot perform any updates on the key
-        if (!prevIsEnabled && !hasUpdatedStatus && hasUpdatedRotation) // key stays disabled
-            throw new CfnInvalidRequestException(
-                "You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
-
-
-        // if key is disabled then it needs to get enabled first and then update rotation if necessary
-        // check if key has been enabled and propagated otherwise eventual inconsistency might occur and rotation status update might hit invalid state exception
-        if (!prevIsEnabled && currIsEnabled && !callbackContext.isKeyEnabled())  // enable key
-            return updateKeyStatus(proxy, proxyClient, model, callbackContext, true);
-
-        // update rotation if necessary
-        if (hasUpdatedRotation)
-            updateKeyRotationStatus(proxy, proxyClient, model, callbackContext, currIsRotationEnabled);
-
-
-        // disable the key if necessary
-        // changing status from enabled to disabled wont affect other updates since they are possible with disabled key
-        // rotation update happens before disabling key
-        if (prevIsEnabled && !currIsEnabled) // disable key
-            updateKeyStatus(proxy, proxyClient, model, callbackContext, false);
-
-        callbackContext.setKeyStatusRotationUpdated(true);
-        return ProgressEvent.progress(model, callbackContext);
     }
 }
