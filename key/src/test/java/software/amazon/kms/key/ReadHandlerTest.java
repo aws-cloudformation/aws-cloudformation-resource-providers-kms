@@ -99,4 +99,45 @@ public class ReadHandlerTest extends AbstractTestBase{
         verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
         verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
     }
+
+    @Test
+    public void handleRequest_SimpleSuccessWithPolicy() {
+        final KeyMetadata keyMetadata = KeyMetadata.builder()
+                .keyId("sampleId")
+                .arn("sampleArn")
+                .build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy("{\"foo\": \"bar\"}").build();
+        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class))).thenReturn(getKeyPolicyResponse);
+
+        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
+        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
+
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(ResourceModel.builder()
+                        .keyId("sampleId")
+                        .build())
+                .build();
+        final CallbackContext callbackContext = new CallbackContext();
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
+        assertThat(response.getCallbackContext()).isNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
+        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
+        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
+    }
 }
