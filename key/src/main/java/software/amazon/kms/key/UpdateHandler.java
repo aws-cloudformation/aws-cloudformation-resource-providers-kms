@@ -1,6 +1,7 @@
 package software.amazon.kms.key;
 
 import static software.amazon.kms.key.ModelAdapter.setDefaults;
+import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
 import com.google.common.collect.Sets;
 import java.util.HashSet;
@@ -87,6 +88,6 @@ public class UpdateHandler extends BaseHandlerStd {
                             return ProgressEvent.progress(resourceModel, context);
                         }))
                 .then(BaseHandlerStd::propagate)
-                .then(progress -> ProgressEvent.defaultSuccessHandler(progress.getResourceModel()));
+                .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(progress.getResourceModel())));
     }
 }
