@@ -43,7 +43,10 @@
     },
     "KeyPolicy": {
       "description": "The key policy that authorizes use of the CMK. The key policy must observe the following rules. ",
-      "type": "object"
+      "type": [
+        "object",
+        "string"
+      ]
     },
     "KeyUsage": {
       "description": "Determines the cryptographic operations for which you can use the CMK. The default value is ENCRYPT_DECRYPT. This parameter is required only for asymmetric CMKs. You can't change the KeyUsage value after the CMK is created. ",
@@ -138,4 +141,3 @@
     }
   }
 }
-

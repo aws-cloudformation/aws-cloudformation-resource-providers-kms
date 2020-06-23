@@ -39,7 +39,7 @@ public class Translator {
             return CreateKeyRequest.builder()
                     .description(resourceModel.getDescription())
                     .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
-                    .policy(MAPPER.writeValueAsString(resourceModel.getKeyPolicy()))
+                    .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
                     .tags(translateTagsToSdk(tags))
                     .build();
         } catch (final JsonProcessingException e) {
@@ -93,11 +93,18 @@ public class Translator {
             return PutKeyPolicyRequest.builder()
                     .keyId(resourceModel.getKeyId())
                     .policyName(DEFAULT_POLICY_NAME)
-                    .policy(MAPPER.writeValueAsString(resourceModel.getKeyPolicy()))
+                    .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
                     .build();
         } catch (final JsonProcessingException e) {
             throw new TerminalException(e);
         }
+    }
+
+    static String translatePolicyInput(final Object policy) throws JsonProcessingException {
+        if (policy instanceof Map){
+            return MAPPER.writeValueAsString(policy);
+        }
+        return (String)policy;
     }
 
     static UntagResourceRequest untagResourceRequest(final String keyId,
