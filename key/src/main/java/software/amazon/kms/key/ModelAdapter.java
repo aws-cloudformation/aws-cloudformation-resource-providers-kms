@@ -1,23 +1,36 @@
 package software.amazon.kms.key;
 
 import com.amazonaws.util.StringUtils;
+import software.amazon.awssdk.services.kms.model.KeyUsageType;
 
 public class ModelAdapter {
     protected static final String DEFAULT_DESCRIPTION = "";
     protected static final Boolean DEFAULT_ENABLED = true;
     protected static final Boolean DEFAULT_ENABLE_KEY_ROTATION = false;
-    protected static final String DEFAULT_KEY_USAGE = "ENCRYPT_DECRYPT";
-    public static ResourceModel setDefaults(final ResourceModel resourceModel) {
+    public static ResourceModel setDefaults(final ResourceModel model) {
 
-        final String description = resourceModel.getDescription();
-        final Boolean enabled = resourceModel.getEnabled();
-        final Boolean enabledKeyRotation = resourceModel.getEnableKeyRotation();
-        final String keyUsage = resourceModel.getKeyUsage();
+        final String description = model.getDescription();
+        final Boolean enabled = model.getEnabled();
+        final Boolean enabledKeyRotation = model.getEnableKeyRotation();
+        final String keyUsage = model.getKeyUsage();
 
-        resourceModel.setDescription(StringUtils.isNullOrEmpty(description) ? DEFAULT_DESCRIPTION : description);
-        resourceModel.setEnabled(enabled == null ? DEFAULT_ENABLED : enabled);
-        resourceModel.setEnableKeyRotation(enabledKeyRotation == null ? DEFAULT_ENABLE_KEY_ROTATION : enabledKeyRotation);
-        resourceModel.setKeyUsage(StringUtils.isNullOrEmpty(keyUsage) ? DEFAULT_KEY_USAGE : keyUsage);
-        return resourceModel;
+        model.setDescription(StringUtils.isNullOrEmpty(description) ? DEFAULT_DESCRIPTION : description);
+        model.setEnabled(enabled == null ? DEFAULT_ENABLED : enabled);
+        model.setEnableKeyRotation(enabledKeyRotation == null ? DEFAULT_ENABLE_KEY_ROTATION : enabledKeyRotation);
+        model.setKeyUsage(StringUtils.isNullOrEmpty(keyUsage) ? KeyUsageType.ENCRYPT_DECRYPT.toString() : keyUsage);
+        return model;
+    }
+
+    public static ResourceModel unsetWriteOnly(final ResourceModel model) {
+        return ResourceModel.builder()
+                .arn(model.getArn())
+                .description(model.getDescription())
+                .enabled(model.getEnabled())
+                .enableKeyRotation(model.getEnableKeyRotation())
+                .keyId(model.getKeyId())
+                .keyPolicy(model.getKeyPolicy())
+                .keyUsage(model.getKeyUsage())
+                .tags(model.getTags())
+                .build();
     }
 }

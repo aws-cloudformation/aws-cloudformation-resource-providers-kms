@@ -11,6 +11,7 @@ import software.amazon.cloudformation.proxy.Logger;
 import java.util.Map;
 
 import static software.amazon.kms.key.ModelAdapter.setDefaults;
+import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
 public class CreateHandler extends BaseHandlerStd {
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -44,6 +45,6 @@ public class CreateHandler extends BaseHandlerStd {
               })
               // final propagation to make sure all updates are reflected
               .then(BaseHandlerStd::propagate)
-              .then(progress -> ProgressEvent.defaultSuccessHandler(progress.getResourceModel()));
+              .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(progress.getResourceModel())));
     }
 }
