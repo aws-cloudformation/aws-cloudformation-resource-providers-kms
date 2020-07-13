@@ -10,7 +10,7 @@ phases:
     commands:
       - pre-commit run --all-files
       - |
-        for directory in $CODEBUILD_SRC_DIR; do
+        for directory in $CODEBUILD_SRC_DIR/*; do
           cd "$directory"
           mvn -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -B clean verify
         done
