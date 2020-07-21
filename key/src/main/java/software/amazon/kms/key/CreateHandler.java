@@ -29,6 +29,7 @@ public class CreateHandler extends BaseHandlerStd {
                               return ProgressEvent.progress(model, callbackContext);
 
                           model.setKeyId(createKeyResponse.keyMetadata().keyId());
+                          model.setArn(createKeyResponse.keyMetadata().arn());
                           // Wait for key state to propagate to other hosts
                           return ProgressEvent.defaultInProgressHandler(context, CALLBACK_DELAY_SECONDS, model);
                       })

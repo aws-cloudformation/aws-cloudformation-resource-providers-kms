@@ -112,7 +112,6 @@
     "update": {
       "permissions": [
         "kms:DescribeKey",
-        "kms:GetKeyRotationStatus",
         "kms:DisableKey",
         "kms:DisableKeyRotation",
         "kms:EnableKey",
@@ -139,3 +138,4 @@
     }
   }
 }
+
