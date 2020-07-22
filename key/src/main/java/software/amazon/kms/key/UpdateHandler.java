@@ -31,7 +31,7 @@ public class UpdateHandler extends BaseHandlerStd {
                             notFoundCheck(describeKeyResponse.keyMetadata());
 
                             if (context.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, context);
-                            final ResourceModel previousModel = request.getPreviousResourceState();
+                            final ResourceModel previousModel = setDefaults(request.getPreviousResourceState());
 
                             final boolean prevIsEnabled = previousModel.getEnabled();
                             final boolean currIsEnabled = model.getEnabled();
