@@ -178,6 +178,41 @@ public class ReadHandlerTest extends AbstractTestBase{
     }
 
     @Test
+    public void handleRequest_GetPolicyUnknownKmsException() {
+
+        final KeyMetadata keyMetadata = KeyMetadata.builder()
+                .keyId("sampleId")
+                .arn("sampleArn")
+                .build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final KmsException exception = (KmsException) KmsException.builder().awsErrorDetails(AwsErrorDetails.builder().errorCode("Unknown").build()).build();
+        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
+        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class)))
+                .thenThrow(exception);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(ResourceModel.builder()
+                        .keyId("sampleId")
+                        .build())
+                .build();
+        final CallbackContext callbackContext = new CallbackContext();
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getErrorCode()).isNotNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
+    }
+
+    @Test
     public void handleRequest_GetPolicyUnknownError() {
 
         final KeyMetadata keyMetadata = KeyMetadata.builder()
