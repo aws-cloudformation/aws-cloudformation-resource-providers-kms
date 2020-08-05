@@ -2,21 +2,12 @@ package software.amazon.kms.key;
 
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
-import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
-import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
-import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
-import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
-import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
-import software.amazon.awssdk.services.kms.model.KeyMetadata;
-import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
-import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
-import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
-import software.amazon.cloudformation.proxy.OperationStatus;
-import software.amazon.cloudformation.proxy.ProgressEvent;
-import software.amazon.cloudformation.proxy.ProxyClient;
-import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.awssdk.services.kms.model.*;
+import software.amazon.cloudformation.exceptions.TerminalException;
+import software.amazon.cloudformation.proxy.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -139,5 +130,86 @@ public class ReadHandlerTest extends AbstractTestBase{
         verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
         verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
         verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
+    }
+
+    @Test
+    public void handleRequest_GetPolicyAccessDenied() {
+
+        final KeyMetadata keyMetadata = KeyMetadata.builder()
+                .keyId("sampleId")
+                .arn("sampleArn")
+                .build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final KmsException exception = (KmsException) KmsException.builder().awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDeniedException").build()).build();
+        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
+        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class)))
+                .thenThrow(exception);
+
+        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
+        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
+
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
+
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(ResourceModel.builder()
+                        .keyId("sampleId")
+                        .build())
+                .build();
+        final CallbackContext callbackContext = new CallbackContext();
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
+        assertThat(response.getCallbackContext()).isNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
+        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
+        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
+    }
+
+    @Test
+    public void handleRequest_GetPolicyUnknownError() {
+
+        final KeyMetadata keyMetadata = KeyMetadata.builder()
+                .keyId("sampleId")
+                .arn("sampleArn")
+                .build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final AwsServiceException exception = AwsServiceException.builder().build();
+        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
+        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class)))
+                .thenThrow(exception);
+
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(ResourceModel.builder()
+                        .keyId("sampleId")
+                        .build())
+                .build();
+        final CallbackContext callbackContext = new CallbackContext();
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getErrorCode()).isNotNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
     }
 }
