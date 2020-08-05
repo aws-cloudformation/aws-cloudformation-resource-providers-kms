@@ -9,10 +9,8 @@ phases:
   build:
     commands:
       - pre-commit run --all-files
-      - cd "$CODEBUILD_SRC_DIR/alias"
-      - mvn clean verify --no-transfer-progress
-      - cd "$CODEBUILD_SRC_DIR/key"
-      - mvn clean verify --no-transfer-progress
-    finally:
-      - cat "$CODEBUILD_SRC_DIR/alias/rpdk.log"
-      - cat "$CODEBUILD_SRC_DIR/key/rpdk.log"
+      - |
+        for directory in $CODEBUILD_SRC_DIR/*/; do
+          cd "$directory"
+          mvn -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -B clean verify --no-transfer-progress
+        done
