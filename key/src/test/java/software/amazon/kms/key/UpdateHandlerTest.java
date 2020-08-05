@@ -88,9 +88,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
-
         final DisableKeyRotationResponse disableKeyRotationResponse = DisableKeyRotationResponse.builder().build();
         when(proxyKmsClient.client().disableKeyRotation(any(DisableKeyRotationRequest.class))).thenReturn(disableKeyRotationResponse);
 
@@ -114,11 +111,16 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(
-                ResourceModel.builder()
-                    .enabled(false)
-                    .enableKeyRotation(false)
-                    .build())
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .enabled(false)
+                                .enableKeyRotation(false)
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .enabled(true)
+                                .enableKeyRotation(true)
+                                .build())
             .build();
         final CallbackContext callbackContext = new CallbackContext();
         callbackContext.setPropagated(true);
@@ -132,8 +134,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(proxyKmsClient.client(), times(1)).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client(), times(1)).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
         verify(proxyKmsClient.client()).disableKey(any(DisableKeyRequest.class));
         verify(proxyKmsClient.client()).updateKeyDescription(any(UpdateKeyDescriptionRequest.class));
         verify(proxyKmsClient.client()).putKeyPolicy(any(PutKeyPolicyRequest.class));
@@ -154,17 +155,19 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
-
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(
-                ResourceModel.builder()
-                    .enabled(false)
-                    .enableKeyRotation(false)
-                    .description("sampleDescription")
-                    .keyUsage("ENCRYPT_DECRYPT")
-                    .build())
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .enabled(false)
+                                .enableKeyRotation(false)
+                                .description("sampleDescription")
+                                .keyUsage("ENCRYPT_DECRYPT")
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .enabled(false)
+                                .enableKeyRotation(true)
+                                .build())
             .build();
 
         try {
@@ -174,7 +177,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         }
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
     }
 
     @Test
@@ -188,20 +190,22 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
-
         final EnableKeyResponse enableKeyResponse = EnableKeyResponse.builder().build();
         when(proxyKmsClient.client().enableKey(any(EnableKeyRequest.class))).thenReturn(enableKeyResponse);
 
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(
-                ResourceModel.builder()
-                    .enabled(true)
-                    .enableKeyRotation(false)
-                    .build())
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .enabled(true)
+                                .enableKeyRotation(false)
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .enabled(false)
+                                .enableKeyRotation(true)
+                                .build())
             .build();
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
@@ -218,7 +222,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
         verify(proxyKmsClient.client()).enableKey(any(EnableKeyRequest.class));
     }
 
@@ -232,9 +235,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
-
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
 
         final DisableKeyRotationResponse disableKeyRotationResponse = DisableKeyRotationResponse.builder().build();
         when(proxyKmsClient.client().disableKeyRotation(any(DisableKeyRotationRequest.class))).thenReturn(disableKeyRotationResponse);
@@ -258,11 +258,16 @@ public class UpdateHandlerTest extends AbstractTestBase{
         when(proxyKmsClient.client().tagResource(any(TagResourceRequest.class))).thenReturn(tagResourceResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(
-                ResourceModel.builder()
-                    .enabled(false)
-                    .enableKeyRotation(false)
-                    .build())
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .enabled(false)
+                                .enableKeyRotation(false)
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .enabled(true)
+                                .enableKeyRotation(true)
+                                .build())
             .build();
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
@@ -278,7 +283,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
         verify(proxyKmsClient.client()).disableKeyRotation(any(DisableKeyRotationRequest.class));
 
         verify(proxyKmsClient.client()).disableKey(any(DisableKeyRequest.class));
@@ -356,9 +360,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(false).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
-
         final UpdateKeyDescriptionResponse updateKeyDescriptionResponse = UpdateKeyDescriptionResponse.builder().build();
         when(proxyKmsClient.client().updateKeyDescription(any(UpdateKeyDescriptionRequest.class))).thenReturn(updateKeyDescriptionResponse);
 
@@ -376,11 +377,16 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(
-                ResourceModel.builder()
-                    .enabled(true)
-                    .enableKeyRotation(false)
-                    .build())
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .enabled(true)
+                                .enableKeyRotation(false)
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .enabled(true)
+                                .enableKeyRotation(false)
+                                .build())
             .build();
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
@@ -397,7 +403,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
         verify(proxyKmsClient.client()).updateKeyDescription(any(UpdateKeyDescriptionRequest.class));
         verify(proxyKmsClient.client()).putKeyPolicy(any(PutKeyPolicyRequest.class));
         verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));

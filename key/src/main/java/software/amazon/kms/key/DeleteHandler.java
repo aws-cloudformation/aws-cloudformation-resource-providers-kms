@@ -28,7 +28,7 @@ public class DeleteHandler extends BaseHandlerStd {
               return ProgressEvent.defaultFailureHandler(exception, HandlerErrorCode.NotFound);
             throw exception;
           })
-          .done((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, client, model, context) -> ProgressEvent.defaultSuccessHandler(model));
+          .done((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, client, model, context) -> ProgressEvent.defaultSuccessHandler(null));
     }
 
     private boolean isDeleted(

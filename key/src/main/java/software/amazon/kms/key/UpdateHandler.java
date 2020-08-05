@@ -31,11 +31,12 @@ public class UpdateHandler extends BaseHandlerStd {
                             notFoundCheck(describeKeyResponse.keyMetadata());
 
                             if (context.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, context);
+                            final ResourceModel previousModel = setDefaults(request.getPreviousResourceState());
 
-                            final boolean prevIsEnabled = describeKeyResponse.keyMetadata().enabled();
+                            final boolean prevIsEnabled = previousModel.getEnabled();
                             final boolean currIsEnabled = model.getEnabled();
 
-                            final boolean prevIsRotationEnabled = proxyInvocation.injectCredentialsAndInvokeV2(Translator.getKeyRotationStatusRequest(model), proxyInvocation.client()::getKeyRotationStatus).keyRotationEnabled();
+                            final boolean prevIsRotationEnabled = previousModel.getEnableKeyRotation();
                             final boolean currIsRotationEnabled = model.getEnableKeyRotation();
 
                             final boolean hasUpdatedStatus = prevIsEnabled ^ currIsEnabled;
