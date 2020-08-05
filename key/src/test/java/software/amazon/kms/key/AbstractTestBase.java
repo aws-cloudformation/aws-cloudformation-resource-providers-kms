@@ -1,9 +1,7 @@
 package software.amazon.kms.key;
 
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import org.mockito.internal.util.collections.Sets;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.awscore.AwsResponse;

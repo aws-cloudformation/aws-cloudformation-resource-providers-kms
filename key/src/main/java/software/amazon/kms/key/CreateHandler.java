@@ -8,8 +8,6 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.Logger;
 
-import java.util.Map;
-
 import static software.amazon.kms.key.ModelAdapter.setDefaults;
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
