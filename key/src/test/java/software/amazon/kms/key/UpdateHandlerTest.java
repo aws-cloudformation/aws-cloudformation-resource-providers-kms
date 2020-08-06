@@ -1,6 +1,8 @@
 package software.amazon.kms.key;
 
 import java.time.Duration;
+
+import com.google.common.collect.Sets;
 import org.junit.jupiter.api.AfterEach;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
@@ -96,7 +98,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
         when(proxyKmsClient.client().putKeyPolicy(any(PutKeyPolicyRequest.class))).thenReturn(putKeyPolicyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).build();
         when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
 
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
@@ -107,15 +109,19 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(
                         ResourceModel.builder()
+                                .description("sample")
                                 .enabled(false)
                                 .enableKeyRotation(false)
+                                .keyPolicy("{new policy}")
                                 .build())
                 .previousResourceState(
                         ResourceModel.builder()
                                 .enabled(true)
                                 .enableKeyRotation(true)
+                                .keyPolicy("{old policy}")
                                 .build())
             .build();
         final CallbackContext callbackContext = new CallbackContext();
@@ -189,8 +195,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final EnableKeyResponse enableKeyResponse = EnableKeyResponse.builder().build();
         when(proxyKmsClient.client().enableKey(any(EnableKeyRequest.class))).thenReturn(enableKeyResponse);
 
-
-
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(
                         ResourceModel.builder()
@@ -244,7 +248,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
         when(proxyKmsClient.client().putKeyPolicy(any(PutKeyPolicyRequest.class))).thenReturn(putKeyPolicyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).build();
         when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
 
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
@@ -254,15 +258,19 @@ public class UpdateHandlerTest extends AbstractTestBase{
         when(proxyKmsClient.client().tagResource(any(TagResourceRequest.class))).thenReturn(tagResourceResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(
                         ResourceModel.builder()
+                                .description("sample")
                                 .enabled(false)
                                 .enableKeyRotation(false)
+                                .keyPolicy("{new policy}")
                                 .build())
                 .previousResourceState(
                         ResourceModel.builder()
                                 .enabled(true)
                                 .enableKeyRotation(true)
+                                .keyPolicy("{old policy}")
                                 .build())
             .build();
 
@@ -299,27 +307,21 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final UpdateKeyDescriptionResponse updateKeyDescriptionResponse = UpdateKeyDescriptionResponse.builder().build();
-        when(proxyKmsClient.client().updateKeyDescription(any(UpdateKeyDescriptionRequest.class))).thenReturn(updateKeyDescriptionResponse);
-
-        final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
-        when(proxyKmsClient.client().putKeyPolicy(any(PutKeyPolicyRequest.class))).thenReturn(putKeyPolicyResponse);
-
         final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
         when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
-
-        final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
-        when(proxyKmsClient.client().untagResource(any(UntagResourceRequest.class))).thenReturn(untagResourceResponse);
-
-        final TagResourceResponse tagResourceResponse = TagResourceResponse.builder().build();
-        when(proxyKmsClient.client().tagResource(any(TagResourceRequest.class))).thenReturn(tagResourceResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(
                 ResourceModel.builder()
-                    .enabled(false)
-                    .enableKeyRotation(false)
+                        .enabled(false)
+                        .enableKeyRotation(false)
+                        .keyPolicy("{}")
                     .build())
+            .previousResourceState(
+                    ResourceModel.builder()
+                            .keyPolicy("{}")
+                            .build()
+            )
             .build();
 
         final CallbackContext callbackContext = new CallbackContext();
@@ -338,11 +340,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).updateKeyDescription(any(UpdateKeyDescriptionRequest.class));
-        verify(proxyKmsClient.client()).putKeyPolicy(any(PutKeyPolicyRequest.class));
         verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
-        verify(proxyKmsClient.client()).untagResource(any(UntagResourceRequest.class));
-        verify(proxyKmsClient.client()).tagResource(any(TagResourceRequest.class));
     }
 
     @Test
@@ -362,7 +360,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
         when(proxyKmsClient.client().putKeyPolicy(any(PutKeyPolicyRequest.class))).thenReturn(putKeyPolicyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).build();
         when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
 
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
@@ -373,15 +371,19 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(
                         ResourceModel.builder()
+                                .description("sample")
                                 .enabled(true)
                                 .enableKeyRotation(false)
+                                .keyPolicy("{new policy}")
                                 .build())
                 .previousResourceState(
                         ResourceModel.builder()
                                 .enabled(true)
                                 .enableKeyRotation(false)
+                                .keyPolicy("{old policy}")
                                 .build())
             .build();
 

@@ -1,7 +1,12 @@
 package software.amazon.kms.key;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+
+import com.google.common.collect.Sets;
+import org.assertj.core.util.Maps;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.awscore.AwsResponse;
@@ -18,11 +23,15 @@ public class AbstractTestBase {
   protected static final Credentials MOCK_CREDENTIALS;
   protected static final org.slf4j.Logger delegate;
   protected static final LoggerProxy logger;
+  protected static final Map<String, String> MODEL_TAGS;
+  protected static final Set<software.amazon.awssdk.services.kms.model.Tag> SDK_TAGS;
 
   static {
     System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
     System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "HH:mm:ss:SSS Z");
     MOCK_CREDENTIALS = new Credentials("accessKey", "secretKey", "token");
+    MODEL_TAGS = Maps.newHashMap("Key2", "Value2");
+    SDK_TAGS = Sets.newHashSet(software.amazon.awssdk.services.kms.model.Tag.builder().tagKey("Key1").tagValue("Value1").build());
 
     delegate = LoggerFactory.getLogger("testing");
     logger = new LoggerProxy();

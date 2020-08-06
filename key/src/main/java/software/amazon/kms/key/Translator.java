@@ -35,16 +35,12 @@ public class Translator {
     // Create handler
     static CreateKeyRequest createCustomerMasterKey(final ResourceModel resourceModel,
                                                     final Map<String, String > tags) {
-        try{
-            return CreateKeyRequest.builder()
-                    .description(resourceModel.getDescription())
-                    .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
-                    .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
-                    .tags(translateTagsToSdk(tags))
-                    .build();
-        } catch (final JsonProcessingException e) {
-            throw new TerminalException(e);
-        }
+        return CreateKeyRequest.builder()
+                .description(resourceModel.getDescription())
+                .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
+                .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
+                .tags(translateTagsToSdk(tags))
+                .build();
     }
 
     // Read handler
@@ -89,20 +85,20 @@ public class Translator {
     }
 
     static PutKeyPolicyRequest putKeyPolicyRequest(final ResourceModel resourceModel) {
-        try {
-            return PutKeyPolicyRequest.builder()
-                    .keyId(resourceModel.getKeyId())
-                    .policyName(DEFAULT_POLICY_NAME)
-                    .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
-                    .build();
-        } catch (final JsonProcessingException e) {
-            throw new TerminalException(e);
-        }
+        return PutKeyPolicyRequest.builder()
+                .keyId(resourceModel.getKeyId())
+                .policyName(DEFAULT_POLICY_NAME)
+                .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
+                .build();
     }
 
-    static String translatePolicyInput(final Object policy) throws JsonProcessingException {
+    static String translatePolicyInput(final Object policy) {
         if (policy instanceof Map){
-            return MAPPER.writeValueAsString(policy);
+            try {
+                return MAPPER.writeValueAsString(policy);
+            } catch (final JsonProcessingException e) {
+                throw new TerminalException(e);
+            }
         }
         return (String)policy;
     }
