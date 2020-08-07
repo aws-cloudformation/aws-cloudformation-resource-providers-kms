@@ -5,7 +5,6 @@ import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 import static software.amazon.kms.key.Translator.translatePolicyInput;
 
 import com.google.common.collect.Sets;
-import java.util.HashSet;
 import java.util.Set;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.Tag;
@@ -85,21 +84,29 @@ public class UpdateHandler extends BaseHandlerStd {
                             .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
                             .progress();
                 })
-                .then(progress -> proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
-                        .translateToServiceRequest(Translator::listResourceTagsRequest)
-                        .makeServiceCall((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
-                        .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {
-                            final Set<Tag> currentTags = Translator.translateTagsToSdk(request.getDesiredResourceTags());
+                .then(progress -> BaseHandlerStd.retrieveResourceTags(proxy, proxyClient, progress))
+                .onSuccess(progress -> {
+                    final Set<Tag> tagsToRemove = Sets.difference(progress.getCallbackContext().getExistingTags(), Translator.translateTagsToSdk(request.getDesiredResourceTags()));
+                    if (tagsToRemove.isEmpty())
+                        return ProgressEvent.success(progress.getResourceModel(), progress.getCallbackContext());
 
-                            final Set<Tag> existingTags = new HashSet<>(listResourceTagsResponse.tags());
+                    return proxy.initiate("kms::untag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                            .translateToServiceRequest((model) -> Translator.untagResourceRequest(model.getKeyId(),tagsToRemove))
+                            .makeServiceCall((untagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(untagResourceRequest, proxyClient.client()::untagResource))
+                            .handleError(BaseHandlerStd::accessDenied)
+                            .success();
+                })
+                .onSuccess(progress -> {
+                    final Set<Tag> tagsToAdd = Sets.difference(Translator.translateTagsToSdk(request.getDesiredResourceTags()), progress.getCallbackContext().getExistingTags());
+                    if (tagsToAdd.isEmpty())
+                        return progress;
 
-                            final Set<Tag> tagsToRemove = Sets.difference(existingTags, currentTags);
-                            final Set<Tag> tagsToAdd = Sets.difference(currentTags, existingTags);
-
-                            if (!tagsToRemove.isEmpty()) proxyInvocation.injectCredentialsAndInvokeV2(Translator.untagResourceRequest(resourceModel.getKeyId(),tagsToRemove), proxyInvocation.client()::untagResource);
-                            if (!tagsToAdd.isEmpty()) proxyInvocation.injectCredentialsAndInvokeV2(Translator.tagResourceRequest(resourceModel.getKeyId(), tagsToAdd), proxyInvocation.client()::tagResource);
-                            return ProgressEvent.progress(resourceModel, context);
-                        }))
+                    return proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                            .translateToServiceRequest((model) -> Translator.tagResourceRequest(model.getKeyId(), tagsToAdd))
+                            .makeServiceCall((tagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(tagResourceRequest, proxyClient.client()::tagResource))
+                            .handleError(BaseHandlerStd::accessDenied)
+                            .progress();
+                })
                 .then(BaseHandlerStd::propagate)
                 .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(progress.getResourceModel())));
     }

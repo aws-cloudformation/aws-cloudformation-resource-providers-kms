@@ -67,6 +67,13 @@ public class Translator {
         return ListResourceTagsRequest.builder().keyId(model.getKeyId()).build();
     }
 
+    static ListResourceTagsRequest listResourceTagsRequest2(final ResourceModel model, final String marker) {
+        return ListResourceTagsRequest.builder()
+                .keyId(model.getKeyId())
+                .marker(marker)
+                .build();
+    }
+
     // Update handler
     static EnableKeyRotationRequest enableKeyRotationRequest(final ResourceModel model) {
         return EnableKeyRotationRequest.builder()
