@@ -9,12 +9,14 @@ import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.ResourceNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
@@ -24,9 +26,9 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
 
   @Override
   public final ProgressEvent<ResourceModel, CallbackContext> handleRequest(final AmazonWebServicesClientProxy proxy,
-      final ResourceHandlerRequest<ResourceModel> request,
-      final CallbackContext callbackContext,
-      final Logger logger) {
+                                                                           final ResourceHandlerRequest<ResourceModel> request,
+                                                                           final CallbackContext callbackContext,
+                                                                           final Logger logger) {
     return handleRequest(
         proxy,
         request,
@@ -42,7 +44,8 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       ProxyClient<KmsClient> proxyClient,
       Logger logger);
 
-  protected void notFoundCheck(final KeyMetadata keyMetadata) {
+  // As KMS::Key cannot be immediately deleted, pending deletion state is treated as not found state
+  protected void resourceStateCheck(final KeyMetadata keyMetadata) {
     if (keyMetadata.keyState() == KeyState.PENDING_DELETION)
       throw new ResourceNotFoundException(ResourceModel.TYPE_NAME, keyMetadata.keyId());
   }
@@ -90,30 +93,38 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
         .progress();
   }
 
-  protected static ProgressEvent<ResourceModel, CallbackContext> retrieveResourceTags(final AmazonWebServicesClientProxy proxy, final ProxyClient<KmsClient> proxyClient, final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
-      CallbackContext context = progressEvent.getCallbackContext();
-      ProgressEvent<ResourceModel, CallbackContext> progressEvt = progressEvent;
-      do {
-        progressEvt = proxy.initiate("kms::list-tag-key:" + context.getMarker(), proxyClient, progressEvent.getResourceModel(), context)
-                .translateToServiceRequest((model) -> Translator.listResourceTagsRequest2(model, context.getMarker()))
+  protected static ProgressEvent<ResourceModel, CallbackContext> retrieveResourceTags(
+          final AmazonWebServicesClientProxy proxy,
+          final ProxyClient<KmsClient> proxyClient,
+          final ProgressEvent<ResourceModel, CallbackContext> progressEvent,
+          final boolean accessDenied // filtering out access denied permission issue (soft fail on Read and hard fail on Update)
+  ) {
+      final CallbackContext callbackContext = progressEvent.getCallbackContext();
+      ProgressEvent<ResourceModel, CallbackContext> progress = progressEvent;
+      do { // pagination to make sure that all the tags are retrieved
+          progress = proxy.initiate("kms::list-tag-key:" + callbackContext.getMarker(), proxyClient, progressEvent.getResourceModel(), callbackContext)
+                .translateToServiceRequest((model) -> Translator.listResourceTagsRequest(model, callbackContext.getMarker()))
                 .makeServiceCall((listResourceTagsRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(listResourceTagsRequest, proxyInvocation.client()::listResourceTags))
-                .handleError(BaseHandlerStd::accessDenied)
-                .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, cxt) -> {
-                  final Set<Tag> existingTags = cxt.getExistingTags() == null ? new HashSet<>() : new HashSet<>(cxt.getExistingTags());
-                  existingTags.addAll(new HashSet<>(listResourceTagsResponse.tags()));
-                  cxt.setExistingTags(existingTags);
-                  cxt.setMarker(listResourceTagsResponse.nextMarker());
-                  return ProgressEvent.success(resourceModel, cxt);
+                .handleError((listResourceTagsRequest, exception, proxyInvocation, resourceModel, context) -> {
+                    if (accessDenied) // for Read Handler -> soft fail for GetAtt
+                        return BaseHandlerStd.accessDeniedPermission(listResourceTagsRequest, exception, proxyInvocation, resourceModel, context);
+                    throw exception; // hard fail for update
+                })
+                .done((listResourceTagsRequest, listResourceTagsResponse, proxyInvocation, resourceModel, context) -> {
+                    final Set<Tag> existingTags = Optional.ofNullable(context.getExistingTags()).orElse(new HashSet<>());
+                    existingTags.addAll(new HashSet<>(listResourceTagsResponse.tags()));
+                    context.setExistingTags(existingTags);
+                    context.setMarker(listResourceTagsResponse.nextMarker());
+                    return ProgressEvent.progress(resourceModel, context);
                 });
-        if (!progressEvt.isSuccess())
-          return progressEvt;
-
-      } while (context.getMarker() != null);
-      return progressEvt;
+      } while (callbackContext.getMarker() != null);
+      return progress;
   }
 
   // final propagation before stack event is considered completed
-  protected static ProgressEvent<ResourceModel, CallbackContext> propagate(final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
+  protected static ProgressEvent<ResourceModel, CallbackContext> propagate(
+          final ProgressEvent<ResourceModel, CallbackContext> progressEvent
+  ) {
     final CallbackContext callbackContext = progressEvent.getCallbackContext();
     if (callbackContext.isPropagated()) return progressEvent;
 
@@ -121,10 +132,30 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
     return ProgressEvent.defaultInProgressHandler(callbackContext, CALLBACK_DELAY_SECONDS, progressEvent.getResourceModel());
   }
 
-  protected static ProgressEvent<ResourceModel, CallbackContext> accessDenied(AwsRequest awsRequest, Exception e, ProxyClient<KmsClient> proxyClient, ResourceModel model, CallbackContext context) {
+  // lambda to filter out access denied exception (used for Read Handler only)
+  protected static ProgressEvent<ResourceModel, CallbackContext> accessDeniedPermission(
+          final AwsRequest awsRequest,
+          final Exception e,
+          final ProxyClient<KmsClient> proxyClient,
+          final ResourceModel model,
+          final CallbackContext context
+  ) {
     if (e instanceof KmsException && ((KmsException)e).awsErrorDetails().errorCode().equals(ACCESS_DENIED_ERROR_CODE)) {
       return ProgressEvent.progress(model, context);
     }
     throw new CfnGeneralServiceException(e);
   }
+
+  // by default not found exception has the same error code as invalid request, hence mapping it correctly
+  protected static ProgressEvent<ResourceModel, CallbackContext> notFoundExcetion(
+          final AwsRequest awsRequest,
+          final Exception e,
+          final ProxyClient<KmsClient> proxyClient,
+          final ResourceModel model,
+          final CallbackContext context
+  ) {
+      if (e instanceof software.amazon.awssdk.services.kms.model.NotFoundException)
+          return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.NotFound);
+      return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.GeneralServiceException);
+    }
 }

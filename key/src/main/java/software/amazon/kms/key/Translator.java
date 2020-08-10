@@ -63,11 +63,7 @@ public class Translator {
                 .build();
     }
 
-    static ListResourceTagsRequest listResourceTagsRequest(final ResourceModel model) {
-        return ListResourceTagsRequest.builder().keyId(model.getKeyId()).build();
-    }
-
-    static ListResourceTagsRequest listResourceTagsRequest2(final ResourceModel model, final String marker) {
+    static ListResourceTagsRequest listResourceTagsRequest(final ResourceModel model, final String marker) {
         return ListResourceTagsRequest.builder()
                 .keyId(model.getKeyId())
                 .marker(marker)
@@ -99,7 +95,8 @@ public class Translator {
                 .build();
     }
 
-    static String translatePolicyInput(final Object policy) {
+    static String translatePolicyInput(final Object policy) { // KeyPolicy could be either String or JSONObject
+                                                              // this is a helper to write policy correctly
         if (policy instanceof Map){
             try {
                 return MAPPER.writeValueAsString(policy);

@@ -5,6 +5,9 @@ import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 import static software.amazon.kms.key.Translator.translatePolicyInput;
 
 import com.google.common.collect.Sets;
+
+import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.Tag;
@@ -28,8 +31,9 @@ public class UpdateHandler extends BaseHandlerStd {
                 .then(progress -> proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
                         .translateToServiceRequest(Translator::describeKeyRequest)
                         .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
+                        .handleError(BaseHandlerStd::notFoundExcetion)
                         .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
-                            notFoundCheck(describeKeyResponse.keyMetadata());
+                            resourceStateCheck(describeKeyResponse.keyMetadata());
 
                             if (context.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, context);
 
@@ -67,45 +71,52 @@ public class UpdateHandler extends BaseHandlerStd {
                         })
                 )
                 .then(progress -> {
-                    if (previousModel.getDescription().equals(progress.getResourceModel().getDescription()))
-                        return progress;
-                    return proxy.initiate("kms::update-key-description", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
-                            .translateToServiceRequest(Translator::updateKeyDescriptionRequest)
-                            .makeServiceCall((updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(updateKeyDescriptionRequest, proxyInvocation.client()::updateKeyDescription))
-                            .progress();
+                    if (!previousModel.getDescription().equals(progress.getResourceModel().getDescription()))
+                        return proxy.initiate("kms::update-key-description", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                                .translateToServiceRequest(Translator::updateKeyDescriptionRequest)
+                                .makeServiceCall((updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(updateKeyDescriptionRequest, proxyInvocation.client()::updateKeyDescription))
+                                .progress();
+
+                    return progress;
                 })
                 .then(progress -> {
+                    final CallbackContext context = progress.getCallbackContext();
                     final String previousKeyPolicy = translatePolicyInput(previousModel.getKeyPolicy());
                     final String currentKeyPolicy = translatePolicyInput(progress.getResourceModel().getKeyPolicy());
-                    if (previousKeyPolicy.equals(currentKeyPolicy))
-                        return progress;
-                    return proxy.initiate("kms::update-key-keypolicy", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
-                            .translateToServiceRequest(Translator::putKeyPolicyRequest)
-                            .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
-                            .progress();
-                })
-                .then(progress -> BaseHandlerStd.retrieveResourceTags(proxy, proxyClient, progress))
-                .onSuccess(progress -> {
-                    final Set<Tag> tagsToRemove = Sets.difference(progress.getCallbackContext().getExistingTags(), Translator.translateTagsToSdk(request.getDesiredResourceTags()));
-                    if (tagsToRemove.isEmpty())
-                        return ProgressEvent.success(progress.getResourceModel(), progress.getCallbackContext());
+                    if (!previousKeyPolicy.equals(currentKeyPolicy) && !context.isKeyPolicyUpdated()) { // context carries policy propagation status
+                        context.setKeyPolicyUpdated(true);
+                        return proxy.initiate("kms::update-key-keypolicy", proxyClient, progress.getResourceModel(), context)
+                                .translateToServiceRequest(Translator::putKeyPolicyRequest)
+                                .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
+                                .progress(BaseHandlerStd.CALLBACK_DELAY_SECONDS);
+                                // requires some propagation delay as updated policy might provision new permissions
+                                // which are required by the next events
+                    }
 
-                    return proxy.initiate("kms::untag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
-                            .translateToServiceRequest((model) -> Translator.untagResourceRequest(model.getKeyId(),tagsToRemove))
-                            .makeServiceCall((untagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(untagResourceRequest, proxyClient.client()::untagResource))
-                            .handleError(BaseHandlerStd::accessDenied)
-                            .success();
+                    return progress;
                 })
-                .onSuccess(progress -> {
-                    final Set<Tag> tagsToAdd = Sets.difference(Translator.translateTagsToSdk(request.getDesiredResourceTags()), progress.getCallbackContext().getExistingTags());
-                    if (tagsToAdd.isEmpty())
-                        return progress;
+                .then(progress -> BaseHandlerStd.retrieveResourceTags(proxy, proxyClient, progress, false)) // retrieving tags with hard fail
+                .then(progress -> {
+                    final Set<Tag> existingTags = Optional.ofNullable(progress.getCallbackContext().getExistingTags()).orElse(new HashSet<>());
+                    final Set<Tag> tagsToRemove = Sets.difference(existingTags, Translator.translateTagsToSdk(request.getDesiredResourceTags()));
+                    if (!tagsToRemove.isEmpty())
+                        return proxy.initiate("kms::untag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                                .translateToServiceRequest((model) -> Translator.untagResourceRequest(model.getKeyId(),tagsToRemove))
+                                .makeServiceCall((untagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(untagResourceRequest, proxyClient.client()::untagResource))
+                                .progress();
 
-                    return proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
-                            .translateToServiceRequest((model) -> Translator.tagResourceRequest(model.getKeyId(), tagsToAdd))
-                            .makeServiceCall((tagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(tagResourceRequest, proxyClient.client()::tagResource))
-                            .handleError(BaseHandlerStd::accessDenied)
-                            .progress();
+                    return progress;
+                })
+                .then(progress -> {
+                    final Set<Tag> existingTags = Optional.ofNullable(progress.getCallbackContext().getExistingTags()).orElse(new HashSet<>());
+                    final Set<Tag> tagsToAdd = Sets.difference(Translator.translateTagsToSdk(request.getDesiredResourceTags()), existingTags);
+                    if (!tagsToAdd.isEmpty())
+                        return proxy.initiate("kms::tag-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
+                                .translateToServiceRequest((model) -> Translator.tagResourceRequest(model.getKeyId(), tagsToAdd))
+                                .makeServiceCall((tagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(tagResourceRequest, proxyClient.client()::tagResource))
+                                .progress();
+
+                    return progress;
                 })
                 .then(BaseHandlerStd::propagate)
                 .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(progress.getResourceModel())));
