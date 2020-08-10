@@ -31,7 +31,7 @@ public class UpdateHandler extends BaseHandlerStd {
                 .then(progress -> proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
                         .translateToServiceRequest(Translator::describeKeyRequest)
                         .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
-                        .handleError(BaseHandlerStd::notFoundExcetion)
+                        .handleError(BaseHandlerStd::handleNotFound)
                         .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
                             resourceStateCheck(describeKeyResponse.keyMetadata());
 

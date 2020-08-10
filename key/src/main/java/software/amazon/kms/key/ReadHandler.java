@@ -2,6 +2,7 @@ package software.amazon.kms.key;
 
 import com.amazonaws.util.StringUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.apache.commons.collections.CollectionUtils;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
@@ -28,7 +29,7 @@ public class ReadHandler extends BaseHandlerStd {
                 .then(progress -> proxy.initiate("kms::describe-key", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
                         .translateToServiceRequest(Translator::describeKeyRequest)
                         .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
-                        .handleError(BaseHandlerStd::notFoundExcetion)
+                        .handleError(BaseHandlerStd::handleNotFound)
                         .done((describeKeyRequest, describeKeyResponse, proxyInvocation, resourceModel, context) -> {
                             final KeyMetadata keyMetadata = describeKeyResponse.keyMetadata();
                             final ResourceModel desiredState = ResourceModel.builder().build();
@@ -46,7 +47,7 @@ public class ReadHandler extends BaseHandlerStd {
                 .then(progress -> proxy.initiate("kms::get-key-policy", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
                         .translateToServiceRequest((model) -> Translator.getKeyPolicyRequest(model.getKeyId()))
                         .makeServiceCall((getKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(getKeyPolicyRequest, proxyInvocation.client()::getKeyPolicy))
-                        .handleError(BaseHandlerStd::accessDeniedPermission) // retrieving key policy with potentially access denied exception
+                        .handleError(BaseHandlerStd::handleAccessDenied) // retrieving key policy with potentially access denied exception
                         .done((getKeyPolicyRequest, getKeyPolicyResponse, proxyInvocation, resourceModel, context) -> {
                             resourceModel.setKeyPolicy(deserializePolicyKey(getKeyPolicyResponse.policy()));
                             return ProgressEvent.progress(resourceModel, context);
@@ -55,7 +56,7 @@ public class ReadHandler extends BaseHandlerStd {
                 .then(progress -> proxy.initiate("kms::get-key-rotation-status", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
                         .translateToServiceRequest(Translator::getKeyRotationStatusRequest)
                         .makeServiceCall((getKeyRotationStatusRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(getKeyRotationStatusRequest, proxyInvocation.client()::getKeyRotationStatus))
-                        .handleError(BaseHandlerStd::accessDeniedPermission) // retrieving key rotation with potentially access denied exception
+                        .handleError(BaseHandlerStd::handleAccessDenied) // retrieving key rotation with potentially access denied exception
                         .done((getKeyRotationStatusRequest, getKeyRotationStatusResponse, proxyInvocation, resourceModel, context) -> {
                             resourceModel.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
                             return ProgressEvent.progress(resourceModel, context);
@@ -65,7 +66,7 @@ public class ReadHandler extends BaseHandlerStd {
                 .then(progress -> {
                     final ResourceModel model = progress.getResourceModel();
                     final CallbackContext context = progress.getCallbackContext();
-                    if (Optional.ofNullable(context.getExistingTags()).isPresent())
+                    if (!CollectionUtils.isEmpty(context.getExistingTags()))
                         model.setTags(Translator.translateTagsFromSdk(context.getExistingTags()));
                     return ProgressEvent.defaultSuccessHandler(model);
                 });
