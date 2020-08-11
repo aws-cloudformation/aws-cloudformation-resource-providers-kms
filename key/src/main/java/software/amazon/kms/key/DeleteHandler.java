@@ -24,7 +24,7 @@ public class DeleteHandler extends BaseHandlerStd {
           .makeServiceCall((scheduleKeyDeletionRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(scheduleKeyDeletionRequest, proxyInvocation.client()::scheduleKeyDeletion))
           .stabilize((scheduleKeyDeletionRequest, scheduleKeyDeletionResponse, proxyInvocation, model, context) -> isDeleted(proxyInvocation, model))
           .handleError((scheduleKeyDeletionRequest, exception, proxyInvocation, resourceModel, context) -> {
-            if (exception instanceof KmsInvalidStateException)
+            if (exception instanceof KmsInvalidStateException) // invalid state can only happen if resource is pending deletion, hence treating as not found
               return ProgressEvent.defaultFailureHandler(exception, HandlerErrorCode.NotFound);
             throw exception;
           })

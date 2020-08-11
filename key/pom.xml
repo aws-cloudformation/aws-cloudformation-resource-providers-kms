@@ -151,7 +151,7 @@
                 <configuration>
                     <excludes>
                         <exclude>**/BaseConfiguration*</exclude>
-                        <exclude>**/BaseHandler*</exclude>
+                        <exclude>**/BaseHandler.java</exclude>
                         <exclude>**/HandlerWrapper*</exclude>
                         <exclude>**/ResourceModel*</exclude>
                         <exclude>**/Configuration*</exclude>
@@ -183,12 +183,12 @@
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.85</minimum>
+                                            <minimum>0.95</minimum>
                                         </limit>
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9</minimum>
+                                            <minimum>0.95</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

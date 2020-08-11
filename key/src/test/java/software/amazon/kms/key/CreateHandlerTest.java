@@ -21,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -58,13 +57,10 @@ public class CreateHandlerTest extends AbstractTestBase{
         verifyNoMoreInteractions(proxyKmsClient.client());
     }
 
+    // Key has been created, waiting on propagation
     @Test
     public void handleRequest_PartiallyPropagate() {
-
-        final CreateKeyResponse createKeyResponse = CreateKeyResponse
-            .builder()
-            .keyMetadata(KeyMetadata.builder().keyId("sampleId").build())
-            .build();
+        final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().keyMetadata(KeyMetadata.builder().build()).build();
         when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
@@ -85,13 +81,10 @@ public class CreateHandlerTest extends AbstractTestBase{
         verify(proxyKmsClient.client()).createKey(any(CreateKeyRequest.class));
     }
 
-
+    // Key has been created and provisioned, waiting on final propagation
     @Test
     public void handleRequest_FullyPropagate() {
-        final CreateKeyResponse createKeyResponse = CreateKeyResponse
-            .builder()
-            .keyMetadata(KeyMetadata.builder().keyId("sampleId").build())
-            .build();
+        final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().keyMetadata(KeyMetadata.builder().build()).build();
         when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
 
         final EnableKeyRotationResponse enableKeyRotationResponse = EnableKeyRotationResponse.builder().build();
@@ -108,8 +101,7 @@ public class CreateHandlerTest extends AbstractTestBase{
                 .keyId("sampleId")
                 .build())
             .build();
-        final CallbackContext callbackContext = new CallbackContext();
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -126,16 +118,10 @@ public class CreateHandlerTest extends AbstractTestBase{
         verify(proxyKmsClient.client()).disableKey(any(DisableKeyRequest.class));
     }
 
+    // Key has been created and fully provisioned, success
     @Test
     public void handleRequest_SimpleSuccess() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder()
-            .keyId("sampleId")
-            .arn("sampleArn")
-            .build();
-        final CreateKeyResponse createKeyResponse = CreateKeyResponse
-            .builder()
-            .keyMetadata(keyMetadata)
-            .build();
+        final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().keyMetadata(KeyMetadata.builder().build()).build();
         when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()

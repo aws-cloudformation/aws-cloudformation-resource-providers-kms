@@ -1,0 +1,85 @@
+{
+  "credentials": {
+    "secretAccessKey": "${userSecretAccessKey}",
+    "sessionToken": "${userSessionToken}",
+    "accessKeyId": "${userAccessKeyId}"
+  },
+  "action": "UPDATE",
+  "request": {
+    "clientRequestToken": "4b90a7e4-b790-456b-a937-0cfdfa211dfe",
+    "desiredResourceState": {
+      "Description": "[SAM Test] Update",
+      "KeyId": "123a45b6-7c89-1011-de1f-21314ghi1j51",
+      "KeyPolicy": {
+        "Version": "2012-10-17",
+        "Id": "key-default-1",
+        "Statement": [
+          {
+            "Sid": "Enable IAM User Permissions",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::${accontId}:root"
+            },
+            "Action": [
+              "kms:CreateKey",
+              "kms:DescribeKey",
+              "kms:EnableKey",
+              "kms:DisableKey",
+              "kms:EnableKeyRotation",
+              "kms:DisableKeyRotation",
+              "kms:PutKeyPolicy",
+              "kms:UpdateKeyDescription",
+              "kms:ScheduleKeyDeletion",
+              "kms:ListResourceTags",
+              "kms:TagResource",
+              "kms:UntagResource"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    },
+    "desiredResourceTags": {
+      "KeyOnUpdate1": "Value",
+      "KeyOnUpdate2": "Value",
+      "KeyOnCreate3": "Value",
+      "KeyOnCreate4": "Value",
+      "KeyOnUpdate5": "Value",
+      "KeyOnCreate6": "Value"
+    },
+    "previousResourceState": {
+      "Description": "[SAM Test] Create",
+      "Enabled": false,
+      "EnableKeyRotation": true,
+      "KeyPolicy": {
+        "Version": "2012-10-17",
+        "Id": "key-default-1",
+        "Statement": [
+          {
+            "Sid": "Enable IAM User Permissions",
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::${accontId}:root"
+            },
+            "Action": [
+              "kms:CreateKey",
+              "kms:DescribeKey",
+              "kms:EnableKey",
+              "kms:DisableKey",
+              "kms:EnableKeyRotation",
+              "kms:DisableKeyRotation",
+              "kms:PutKeyPolicy",
+              "kms:UpdateKeyDescription",
+              "kms:ScheduleKeyDeletion",
+              "kms:TagResource"
+            ],
+            "Resource": "*"
+          }
+        ]
+      },
+      "KeyUsage": "ENCRYPT_DECRYPT"
+    },
+    "logicalResourceIdentifier": "MyKey"
+  },
+  "callbackContext": null
+}

@@ -1,0 +1,17 @@
+{
+  "credentials": {
+    "secretAccessKey": "${userSecretAccessKey}",
+    "sessionToken": "${userSessionToken}",
+    "accessKeyId": "${userAccessKeyId}"
+  },
+  "action": "READ",
+  "request": {
+    "clientRequestToken": "4b90a7e4-b790-456b-a937-0cfdfa211dfe",
+    "desiredResourceState": {
+      "KeyId": "123a45b6-7c89-1011-de1f-21314ghi1j51",
+      "PendingWindowInDays": 7
+    },
+    "logicalResourceIdentifier": "MyKey"
+  },
+  "callbackContext": null
+}
