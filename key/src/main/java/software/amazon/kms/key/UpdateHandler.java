@@ -99,7 +99,7 @@ public class UpdateHandler extends BaseHandlerStd {
                 })
                 .then(progress -> {
                     ProgressEvent<ResourceModel, CallbackContext> event = ProgressEvent.progress(progress.getResourceModel(), progress.getCallbackContext())
-                            .then(progressEvent -> BaseHandlerStd.retrieveResourceTags(proxy, proxyClient, progressEvent, false)) // retrieving tags with hard fail
+                            .then(progressEvent -> BaseHandlerStd.retrieveResourceTags(proxy, proxyClient, progressEvent, false))
                             .then(progressEvent -> {
                                 final Set<Tag> existingTags = Optional.ofNullable(progressEvent.getCallbackContext().getExistingTags()).orElse(new HashSet<>());
                                 final Set<Tag> tagsToRemove = Sets.difference(existingTags, Translator.translateTagsToSdk(request.getDesiredResourceTags()));
@@ -124,7 +124,7 @@ public class UpdateHandler extends BaseHandlerStd {
                             });
 
                     if (event.isFailed() && event.getErrorCode() == HandlerErrorCode.InvalidRequest && event.getMessage().contains(AccessDeniedExceptionMessage)) {
-                        logger.log(event.getMessage());
+                        logger.log("[Tag Update: Soft Fail]" + event.getMessage());
                         return progress;
                     }
                     return event;
