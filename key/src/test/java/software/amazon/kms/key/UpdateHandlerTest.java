@@ -3,6 +3,8 @@ package software.amazon.kms.key;
 import java.time.Duration;
 
 import org.junit.jupiter.api.AfterEach;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
@@ -76,6 +78,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
     private ResourceModel DESIRED_STATE_SCENARIO_4;
     private ResourceModel PREVIOUS_STATE_SCENARIO_4;
 
+    private KmsException AccessDeniedException;
+
     @BeforeEach
     public void setup() {
         handler = new UpdateHandler();
@@ -118,6 +122,15 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .enableKeyRotation(false)
                 .keyPolicy("{old policy}")
                 .build();
+
+        AccessDeniedException = (KmsException) KmsException.builder().awsErrorDetails(
+                AwsErrorDetails.builder()
+                        .sdkHttpResponse(SdkHttpResponse.builder()
+                                .statusCode(400)
+                                .build())
+                        .errorCode("AccessDeniedException")
+                        .errorMessage("... not authorized ...").build()
+        ).build();
     }
 
     @AfterEach
@@ -364,6 +377,126 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
+
+        final CallbackContext callbackContext = new CallbackContext();
+        callbackContext.setKeyStatusRotationUpdated(true);
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(false);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
+        verify(proxyKmsClient.client()).untagResource(any(UntagResourceRequest.class));
+        verify(proxyKmsClient.client()).tagResource(any(TagResourceRequest.class));
+    }
+
+    @Test
+    public void handleRequest_ListTagSoftFailUpdate() {
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenThrow(AccessDeniedException);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceTags(MODEL_TAGS)
+                .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
+                .previousResourceState(ResourceModel.builder().keyPolicy("").build())
+                .build();
+
+
+        final CallbackContext callbackContext = new CallbackContext();
+        callbackContext.setKeyStatusRotationUpdated(true);
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(false);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
+    }
+
+    @Test
+    public void handleRequest_UntagSoftFailUpdate() {
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
+
+        when(proxyKmsClient.client().untagResource(any(UntagResourceRequest.class))).thenThrow(AccessDeniedException);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceTags(MODEL_TAGS)
+                .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
+                .previousResourceState(ResourceModel.builder().keyPolicy("").build())
+                .build();
+
+
+        final CallbackContext callbackContext = new CallbackContext();
+        callbackContext.setKeyStatusRotationUpdated(true);
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
+        assertThat(response.getCallbackContext().keyEnabled).isEqualTo(false);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
+        verify(proxyKmsClient.client()).untagResource(any(UntagResourceRequest.class));
+    }
+
+    @Test
+    public void handleRequest_TagSoftFailUpdate() {
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
+
+        final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
+        when(proxyKmsClient.client().untagResource(any(UntagResourceRequest.class))).thenReturn(untagResourceResponse);
+
+        when(proxyKmsClient.client().tagResource(any(TagResourceRequest.class))).thenThrow(AccessDeniedException);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceTags(MODEL_TAGS)
+                .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
+                .previousResourceState(ResourceModel.builder().keyPolicy("").build())
+                .build();
+
 
         final CallbackContext callbackContext = new CallbackContext();
         callbackContext.setKeyStatusRotationUpdated(true);
