@@ -151,7 +151,7 @@
                 <configuration>
                     <excludes>
                         <exclude>**/BaseConfiguration*</exclude>
-                        <exclude>**/BaseHandler.java</exclude>
+                        <exclude>**/BaseHandler*</exclude>
                         <exclude>**/HandlerWrapper*</exclude>
                         <exclude>**/ResourceModel*</exclude>
                         <exclude>**/Configuration*</exclude>
