@@ -10,6 +10,7 @@
             "amazon",
             "kms",
             "alias"
-        ]
+        ],
+        "protocolVersion": "2.0.0"
     }
 }
