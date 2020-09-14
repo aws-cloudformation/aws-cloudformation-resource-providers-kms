@@ -12,7 +12,6 @@ import java.util.Set;
 public class CallbackContext extends StdCallbackContext {
     protected boolean keyEnabled;
     protected boolean propagated;
-    protected boolean keyStatusRotationUpdated;
     protected boolean keyPolicyUpdated;
     protected String marker;
     protected Set<Tag> existingTags;

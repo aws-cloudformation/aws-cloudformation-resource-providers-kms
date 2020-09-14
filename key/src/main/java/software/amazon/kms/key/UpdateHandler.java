@@ -1,17 +1,13 @@
 package software.amazon.kms.key;
 
-import static software.amazon.kms.key.ModelAdapter.setDefaults;
-import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
-import static software.amazon.kms.key.Translator.translatePolicyInput;
-
-import com.google.common.collect.Sets;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+
+import com.google.common.collect.Sets;
+
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.Tag;
-import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
@@ -19,59 +15,57 @@ import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
-public class UpdateHandler extends BaseHandlerStd {
-    protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
-        final AmazonWebServicesClientProxy proxy,
-        final ResourceHandlerRequest<ResourceModel> request,
-        final CallbackContext callbackContext,
-        final ProxyClient<KmsClient> proxyClient,
-        final Logger logger) {
-        final String AccessDeniedExceptionMessage = "not authorized";
+import static software.amazon.kms.key.ModelAdapter.setDefaults;
+import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
+import static software.amazon.kms.key.Translator.translatePolicyInput;
 
+public class UpdateHandler extends BaseHandlerStd {
+    private final static String ACCESS_DENIED_EXCEPTION_MESSAGE = "not authorized";
+
+    protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
+            final AmazonWebServicesClientProxy proxy,
+            final ResourceHandlerRequest<ResourceModel> request,
+            final CallbackContext callbackContext,
+            final ProxyClient<KmsClient> proxyClient,
+            final Logger logger) {
+        final ResourceModel model = setDefaults(request.getDesiredResourceState());
         final ResourceModel previousModel = setDefaults(request.getPreviousResourceState());
-        return ProgressEvent.progress(setDefaults(request.getDesiredResourceState()), callbackContext)
-                .then(progress -> proxy.initiate("kms::update-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
+
+        return ProgressEvent.progress(model, callbackContext)
+                .then(progress -> proxy.initiate("kms::update-key", proxyClient, model, callbackContext)
                         .translateToServiceRequest(Translator::describeKeyRequest)
                         .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(describeKeyRequest, proxyInvocation.client()::describeKey))
                         .handleError(BaseHandlerStd::handleNotFound)
-                        .done((describeKeyRequest, describeKeyResponse, proxyInvocation, model, context) -> {
+                        .done(describeKeyResponse -> {
                             resourceStateCheck(describeKeyResponse.keyMetadata());
 
-                            if (context.isKeyStatusRotationUpdated()) return ProgressEvent.progress(model, context);
-
-
-                            final boolean prevIsEnabled = previousModel.getEnabled();
-                            final boolean currIsEnabled = model.getEnabled();
-
-                            final boolean prevIsRotationEnabled = previousModel.getEnableKeyRotation();
-                            final boolean currIsRotationEnabled = model.getEnableKeyRotation();
-
-                            final boolean hasUpdatedStatus = prevIsEnabled ^ currIsEnabled;
-                            final boolean hasUpdatedRotation = prevIsRotationEnabled ^ currIsRotationEnabled;
-
-                            // if key is not being updated and is disabled then we cannot perform any updates on the key
-                            if (!prevIsEnabled && !hasUpdatedStatus && hasUpdatedRotation) // key stays disabled
-                                throw new CfnInvalidRequestException("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
-
-                            // if key is disabled then it needs to get enabled first and then update rotation if necessary
-                            // check if key has been enabled and propagated otherwise eventual inconsistency might occur and rotation status update might hit invalid state exception
-                            if (!prevIsEnabled && currIsEnabled && !context.isKeyEnabled())  // enable key
-                                return updateKeyStatus(proxy, proxyInvocation, model, context, true);
-
-                            // update rotation if necessary
-                            if (hasUpdatedRotation)
-                                updateKeyRotationStatus(proxy, proxyInvocation, model, context, currIsRotationEnabled);
-
-                            // disable the key if necessary
-                            // changing status from enabled to disabled wont affect other updates since they are possible with disabled key
-                            // rotation update happens before disabling key
-                            if (prevIsEnabled && !currIsEnabled) // disable key
-                                updateKeyStatus(proxy, proxyInvocation, model, context, false);
-
-                            context.setKeyStatusRotationUpdated(true);
-                            return ProgressEvent.progress(model, context);
+                            return progress;
                         })
                 )
+                .then(progress -> validateResourceModel(progress, previousModel, model))
+                .then(progress -> {
+                    // If key is disabled then it needs to get enabled first and then update rotation if necessary
+                    // Check if key has been enabled and propagated otherwise eventual inconsistency might occur and
+                    // rotation status update might hit invalid state exception
+                    if (!previousModel.getEnabled() && model.getEnabled() && !callbackContext.isKeyEnabled())
+                        return updateKeyStatus(proxy, proxyClient, model, callbackContext, true);
+                    return progress;
+                })
+                .then(progress -> {
+                    // Update rotation if necessary
+                    if (previousModel.getEnableKeyRotation() != model.getEnableKeyRotation())
+                        return updateKeyRotationStatus(proxy, proxyClient, model, callbackContext,
+                                model.getEnableKeyRotation());
+                    return progress;
+                })
+                .then(progress -> {
+                    // Disable the key if necessary
+                    // Changing status from enabled to disabled wont affect other updates since they are possible with disabled key
+                    // Rotation update happens before disabling key
+                    if (previousModel.getEnabled() && !model.getEnabled()) // disable key
+                        return updateKeyStatus(proxy, proxyClient, model, callbackContext, false);
+                    return progress;
+                })
                 .then(progress -> {
                     if (!previousModel.getDescription().equals(progress.getResourceModel().getDescription()))
                         return proxy.initiate("kms::update-key-description", proxyClient, progress.getResourceModel(), progress.getCallbackContext())
@@ -91,8 +85,8 @@ public class UpdateHandler extends BaseHandlerStd {
                                 .translateToServiceRequest(Translator::putKeyPolicyRequest)
                                 .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(putKeyPolicyRequest, proxyInvocation.client()::putKeyPolicy))
                                 .progress(BaseHandlerStd.CALLBACK_DELAY_SECONDS);
-                                // requires some propagation delay as updated policy might provision new permissions
-                                // which are required by the next events
+                        // requires some propagation delay as updated policy might provision new permissions
+                        // which are required by the next events
                     }
 
                     return progress;
@@ -105,7 +99,7 @@ public class UpdateHandler extends BaseHandlerStd {
                                 final Set<Tag> tagsToRemove = Sets.difference(existingTags, Translator.translateTagsToSdk(request.getDesiredResourceTags()));
                                 if (!tagsToRemove.isEmpty())
                                     return proxy.initiate("kms::untag-key", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
-                                            .translateToServiceRequest((model) -> Translator.untagResourceRequest(model.getKeyId(),tagsToRemove))
+                                            .translateToServiceRequest((m) -> Translator.untagResourceRequest(m.getKeyId(),tagsToRemove))
                                             .makeServiceCall((untagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(untagResourceRequest, proxyClient.client()::untagResource))
                                             .progress();
 
@@ -116,14 +110,14 @@ public class UpdateHandler extends BaseHandlerStd {
                                 final Set<Tag> tagsToAdd = Sets.difference(Translator.translateTagsToSdk(request.getDesiredResourceTags()), existingTags);
                                 if (!tagsToAdd.isEmpty())
                                     return proxy.initiate("kms::tag-key", proxyClient, progressEvent.getResourceModel(), progressEvent.getCallbackContext())
-                                            .translateToServiceRequest((model) -> Translator.tagResourceRequest(model.getKeyId(), tagsToAdd))
+                                            .translateToServiceRequest((m) -> Translator.tagResourceRequest(m.getKeyId(), tagsToAdd))
                                             .makeServiceCall((tagResourceRequest, proxyInvocation) -> proxyClient.injectCredentialsAndInvokeV2(tagResourceRequest, proxyClient.client()::tagResource))
                                             .progress();
 
                                 return progressEvent;
                             });
 
-                    if (event.isFailed() && event.getErrorCode() == HandlerErrorCode.InvalidRequest && event.getMessage().contains(AccessDeniedExceptionMessage)) {
+                    if (event.isFailed() && event.getErrorCode() == HandlerErrorCode.InvalidRequest && event.getMessage().contains(ACCESS_DENIED_EXCEPTION_MESSAGE)) {
                         logger.log("[Tag Update: Soft Fail]" + event.getMessage());
                         return progress;
                     }

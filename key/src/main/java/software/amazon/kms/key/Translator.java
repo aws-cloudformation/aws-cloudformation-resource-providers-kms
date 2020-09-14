@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
 import java.util.Optional;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
+import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
@@ -38,6 +39,7 @@ public class Translator {
         return CreateKeyRequest.builder()
                 .description(resourceModel.getDescription())
                 .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
+                .customerMasterKeySpec(CustomerMasterKeySpec.fromValue(resourceModel.getKeySpec()))
                 .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
                 .tags(translateTagsToSdk(tags))
                 .build();
@@ -151,7 +153,6 @@ public class Translator {
     }
 
     // Translate tags
-
     static Set<Tag> translateTagsToSdk(final Map<String, String> tags) {
         if (tags == null) return Collections.emptySet();
         return Optional.of(tags.entrySet()).orElse(Collections.emptySet())

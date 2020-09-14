@@ -41,6 +41,7 @@ public class ReadHandler extends BaseHandlerStd {
                             desiredState.setDescription(keyMetadata.description());
                             desiredState.setEnabled(keyMetadata.enabled());
                             desiredState.setKeyUsage(keyMetadata.keyUsageAsString());
+                            desiredState.setKeySpec(keyMetadata.customerMasterKeySpecAsString());
                             return ProgressEvent.progress(desiredState, context);
                         })
                 )

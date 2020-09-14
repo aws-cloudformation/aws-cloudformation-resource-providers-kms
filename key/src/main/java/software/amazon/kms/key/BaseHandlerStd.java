@@ -2,10 +2,12 @@ package software.amazon.kms.key;
 
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.awssdk.services.kms.model.Tag;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.ResourceNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
@@ -155,5 +157,24 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       if (e instanceof software.amazon.awssdk.services.kms.model.NotFoundException)
           return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.NotFound);
       return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.GeneralServiceException);
+    }
+
+    /**
+     * A helper method for validating that the requested resource model transition is possible
+     */
+    protected static ProgressEvent<ResourceModel, CallbackContext> validateResourceModel(
+            final ProgressEvent<ResourceModel, CallbackContext> progress, final ResourceModel previousModel,
+            final ResourceModel model) {
+        // If key is not being updated and is disabled, then we cannot perform any updates on the key
+        if (previousModel != null && !previousModel.getEnabled() && !model.getEnabled() &&
+                previousModel.getEnableKeyRotation() != model.getEnableKeyRotation())
+            throw new CfnInvalidRequestException("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
+
+        // If the key is asymmetric, we cannot enable key rotation
+        if (!model.getKeySpec().equals(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString()) &&
+                model.getEnableKeyRotation())
+            throw new CfnInvalidRequestException("You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+
+      return progress;
     }
 }

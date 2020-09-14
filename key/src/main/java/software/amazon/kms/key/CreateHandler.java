@@ -18,28 +18,34 @@ public class CreateHandler extends BaseHandlerStd {
         final CallbackContext callbackContext,
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
-      return ProgressEvent.progress(setDefaults(request.getDesiredResourceState()), callbackContext)
-              .then(progress -> proxy.initiate("kms::create-key", proxyClient, setDefaults(request.getDesiredResourceState()), callbackContext)
+        final ResourceModel model = setDefaults(request.getDesiredResourceState());
+
+        return ProgressEvent.progress(model, callbackContext)
+              .then(progress -> validateResourceModel(progress, null, model))
+              .then(progress -> proxy.initiate("kms::create-key", proxyClient, model, callbackContext)
                       .translateToServiceRequest((resourceModel) -> Translator.createCustomerMasterKey(resourceModel, request.getDesiredResourceTags()))
                       .makeServiceCall((createKeyRequest, proxyInvocation) -> proxyInvocation.injectCredentialsAndInvokeV2(createKeyRequest, proxyInvocation.client()::createKey))
-                      .done((createKeyRequest, createKeyResponse, proxyInvocation, model, context) -> {
+                      .done(createKeyResponse -> {
                           if (!StringUtils.isNullOrEmpty(model.getKeyId()))
                               return ProgressEvent.progress(model, callbackContext);
 
                           model.setKeyId(createKeyResponse.keyMetadata().keyId());
                           model.setArn(createKeyResponse.keyMetadata().arn());
+
                           // Wait for key state to propagate to other hosts
-                          return ProgressEvent.defaultInProgressHandler(context, CALLBACK_DELAY_SECONDS, model);
+                          return ProgressEvent.defaultInProgressHandler(callbackContext, CALLBACK_DELAY_SECONDS, model);
                       })
               )
               .then(progress -> {
                   if(progress.getResourceModel().getEnableKeyRotation()) // update key rotation status (by default is disabled)
-                      updateKeyRotationStatus(proxy, proxyClient, progress.getResourceModel(), progress.getCallbackContext(), true);
+                      return updateKeyRotationStatus(proxy, proxyClient, progress.getResourceModel(),
+                              progress.getCallbackContext(), true);
                   return progress;
               })
               .then(progress -> {
                   if(!progress.getResourceModel().getEnabled()) // update key status (by default is enabled)
-                      return updateKeyStatus(proxy, proxyClient, progress.getResourceModel(), progress.getCallbackContext(), false);
+                      return updateKeyStatus(proxy, proxyClient, progress.getResourceModel(),
+                              progress.getCallbackContext(), false);
                   return progress;
               })
               // final propagation to make sure all updates are reflected
