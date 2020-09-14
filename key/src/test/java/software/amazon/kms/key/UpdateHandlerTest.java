@@ -389,7 +389,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
     }
-
+    
     // SCENARIO 7: Key usage is modified
     // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
     @Test
