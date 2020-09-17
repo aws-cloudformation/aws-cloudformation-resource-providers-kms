@@ -165,7 +165,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
     protected static ProgressEvent<ResourceModel, CallbackContext> validateResourceModel(
             final ProgressEvent<ResourceModel, CallbackContext> progress, final ResourceModel previousModel,
             final ResourceModel model) {
-        // If key is not being updated and is disabled, then we cannot perform any updates on the key
+        // If the key is disabled, and will continue to be, we cannot modify the EnableKeyRotation property
         if (previousModel != null && !previousModel.getEnabled() && !model.getEnabled() &&
                 previousModel.getEnableKeyRotation() != model.getEnableKeyRotation())
             throw new CfnInvalidRequestException("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
