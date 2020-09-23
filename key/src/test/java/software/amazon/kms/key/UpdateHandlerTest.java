@@ -466,6 +466,82 @@ public class UpdateHandlerTest extends AbstractTestBase{
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
     }
 
+    // SCENARIO 7: Key usage is modified
+    // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
+    @Test
+    public void handleRequest_KeyUsageChanged() {
+        final String keyId = UUID.randomUUID().toString();
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnNotUpdatableException e) {
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                    ResourceModel.TYPE_NAME, keyId
+            ));
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    // SCENARIO 8: Key spec is modified
+    // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
+    @Test
+    public void handleRequest_KeySpecChanged() {
+        final String keyId = UUID.randomUUID().toString();
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.ECC_NIST_P256.toString())
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnNotUpdatableException e) {
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                    ResourceModel.TYPE_NAME, keyId
+            ));
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
     @Test
     public void handleRequest_TagUpdate() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
