@@ -1,6 +1,7 @@
 package software.amazon.kms.key;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +39,7 @@ import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
 import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
@@ -47,6 +49,7 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -345,6 +348,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
         } catch (CfnInvalidRequestException e) {
             assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
         }
@@ -353,7 +357,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
     }
 
     // SCENARIO 6: Rotation is enabled for an Asymmetric key
-    // Expect an exception to be thrown
+    // Expect a CfnInvalidRequestException to be thrown
     @Test
     public void handleRequest_AsymmetricRotationEnabled() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
@@ -378,8 +382,85 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
-        } catch (CfnInvalidRequestException e) {
+            fail();
+        } catch (final CfnInvalidRequestException e) {
             assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    // SCENARIO 7: Key usage is modified
+    // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
+    @Test
+    public void handleRequest_KeyUsageChanged() {
+        final String keyId = UUID.randomUUID().toString();
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnNotUpdatableException e) {
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                    ResourceModel.TYPE_NAME, keyId
+            ));
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    // SCENARIO 8: Key spec is modified
+    // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
+    @Test
+    public void handleRequest_KeySpecChanged() {
+        final String keyId = UUID.randomUUID().toString();
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.ECC_NIST_P256.toString())
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnNotUpdatableException e) {
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                    ResourceModel.TYPE_NAME, keyId
+            ));
         }
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
