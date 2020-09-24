@@ -88,9 +88,6 @@
   "primaryIdentifier": [
     "/properties/KeyId"
   ],
-  "createOnlyProperties": [
-    "/properties/KeyUsage"
-  ],
   "writeOnlyProperties": [
     "/properties/PendingWindowInDays"
   ],
