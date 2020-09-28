@@ -177,8 +177,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
             // If the key is disabled, and will continue to be, we cannot modify the EnableKeyRotation property
             if (!previousModel.getEnabled() && !model.getEnabled() &&
                     previousModel.getEnableKeyRotation() != model.getEnableKeyRotation()) {
-                throw new CfnInvalidRequestException("You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
-
+                throw new CfnInvalidRequestException("You cannot change the EnableKeyRotation property while the Enabled property is false.");
             }
 
             // If the key usage or spec changes, we need to trigger re-creation

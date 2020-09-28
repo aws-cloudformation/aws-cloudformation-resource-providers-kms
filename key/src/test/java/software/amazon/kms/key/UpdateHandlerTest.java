@@ -350,7 +350,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
             fail();
         } catch (CfnInvalidRequestException e) {
-            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
+            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot change the EnableKeyRotation property while the Enabled property is false.");
         }
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));

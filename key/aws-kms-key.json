@@ -49,7 +49,7 @@
       ]
     },
     "KeyUsage": {
-      "description": "Determines the cryptographic operations for which you can use the CMK. The default value is ENCRYPT_DECRYPT. This parameter is required only for asymmetric CMKs. You can't change the KeyUsage value after the CMK is created.",
+      "description": "Determines the cryptographic operations for which you can use the CMK. The default value is ENCRYPT_DECRYPT. This property is required only for asymmetric CMKs. You can't change the KeyUsage value after the CMK is created.",
       "type": "string",
       "default": "ENCRYPT_DECRYPT",
       "enum": [
@@ -58,7 +58,7 @@
       ]
     },
     "KeySpec": {
-      "description": "Specifies the type of CMK to create. The default value is SYMMETRIC_DEFAULT. This parameter is required only for asymmetric CMKs. You can't change the KeySpec value after the CMK is created.",
+      "description": "Specifies the type of CMK to create. The default value is SYMMETRIC_DEFAULT. This property is required only for asymmetric CMKs. You can't change the KeySpec value after the CMK is created.",
       "type": "string",
       "default": "SYMMETRIC_DEFAULT",
       "enum": [
