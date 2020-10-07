@@ -1,9 +1,8 @@
 package software.amazon.kms.key;
 
+import java.util.Set;
 import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.cloudformation.proxy.StdCallbackContext;
-
-import java.util.Set;
 
 @lombok.Getter
 @lombok.Setter

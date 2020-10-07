@@ -44,7 +44,7 @@ public class CreateHandlerTest extends AbstractTestBase{
             .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
             .description("mock-description")
             .enabled(true)
-            .keyPolicy(ReadHandler.deserializePolicyKey(KEY_POLICY));
+            .keyPolicy(ReadHandler.deserializeKeyPolicy(KEY_POLICY));
     private static final ResourceModel KEY_MODEL = KEY_MODEL_BUILDER.build();
     private static final ResourceModel KEY_MODEL_CREATED = KEY_MODEL_BUILDER
             .keyId("mock-key-id")

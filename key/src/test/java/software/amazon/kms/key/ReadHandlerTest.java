@@ -56,7 +56,7 @@ public class ReadHandlerTest extends AbstractTestBase {
             .enabled(true);
     private static final ResourceModel KEY_MODEL_NULL_TAGS_NULL_POLICY = KEY_MODEL_BUILDER.build();
     private static final ResourceModel KEY_MODEL = KEY_MODEL_BUILDER
-            .keyPolicy(ReadHandler.deserializePolicyKey(KEY_POLICY))
+            .keyPolicy(ReadHandler.deserializeKeyPolicy(KEY_POLICY))
             .tags(SDK_TAGS.stream().map(t -> new Tag(t.tagKey(), t.tagValue())).collect(Collectors.toSet()))
             .build();
     private static final KeyMetadata.Builder KEY_METADATA_BUILDER = KeyMetadata.builder()
