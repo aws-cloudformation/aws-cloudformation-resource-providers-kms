@@ -1,18 +1,28 @@
 package software.amazon.kms.key;
 
 import java.time.Duration;
+import java.util.stream.Collectors;
+
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
-import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
-import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
+import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
+import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
+import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
@@ -23,11 +33,7 @@ import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.kms.key.ResourceModel.ResourceModelBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,7 +44,32 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class ReadHandlerTest extends AbstractTestBase{
+public class ReadHandlerTest extends AbstractTestBase {
+    private static final String KEY_POLICY = "{\"foo\":\"bar\"}";
+    private static final ResourceModelBuilder KEY_MODEL_BUILDER = ResourceModel.builder()
+            .keyId("mock-key-id")
+            .arn("mock-arn")
+            .enableKeyRotation(true)
+            .keySpec(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString())
+            .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+            .description("mock-description")
+            .enabled(true);
+    private static final ResourceModel KEY_MODEL_NULL_TAGS_NULL_POLICY = KEY_MODEL_BUILDER.build();
+    private static final ResourceModel KEY_MODEL = KEY_MODEL_BUILDER
+            .keyPolicy(ReadHandler.deserializeKeyPolicy(KEY_POLICY))
+            .tags(SDK_TAGS.stream().map(t -> new Tag(t.tagKey(), t.tagValue())).collect(Collectors.toSet()))
+            .build();
+    private static final KeyMetadata.Builder KEY_METADATA_BUILDER = KeyMetadata.builder()
+            .keyId(KEY_MODEL.getKeyId())
+            .arn(KEY_MODEL.getArn())
+            .customerMasterKeySpec(KEY_MODEL.getKeySpec())
+            .keyUsage(KEY_MODEL.getKeyUsage())
+            .description(KEY_MODEL.getDescription())
+            .enabled(KEY_MODEL.getEnabled());
+    private static final KeyMetadata KEY_METADATA = KEY_METADATA_BUILDER.build();
+    private static final KeyMetadata KEY_METADATA_PENDING_DELETION = KEY_METADATA_BUILDER
+            .keyState(KeyState.PENDING_DELETION)
+            .build();
 
     @Mock
     private AmazonWebServicesClientProxy proxy;
@@ -65,70 +96,39 @@ public class ReadHandlerTest extends AbstractTestBase{
         verifyNoMoreInteractions(proxyKmsClient.client());
     }
 
-
     @Test
     public void handleRequest_SimpleSuccess() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy(null).build();
+        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy(KEY_POLICY).build();
         when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class))).thenReturn(getKeyPolicyResponse);
 
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
+        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder()
+                .keyRotationEnabled(KEY_MODEL.getEnableKeyRotation())
+                .build();
+        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class)))
+                .thenReturn(getKeyRotationStatusResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
-        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
+        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder()
+                .tags(SDK_TAGS)
+                .build();
+        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class)))
+                .thenReturn(listTagsForResourceResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackContext()).isNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
         assertThat(response.getResourceModels()).isNull();
-        assertThat(response.getMessage()).isNull();
-        assertThat(response.getErrorCode()).isNull();
-
-        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
-        verify(proxyKmsClient.client()).getKeyPolicy(any(GetKeyPolicyRequest.class));
-        verify(proxyKmsClient.client()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class));
-        verify(proxyKmsClient.client()).listResourceTags(any(ListResourceTagsRequest.class));
-    }
-
-    @Test
-    public void handleRequest_SimpleSuccessWithPolicy() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
-
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().policy("{\"foo\": \"bar\"}").build();
-        when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class))).thenReturn(getKeyPolicyResponse);
-
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
-
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).build();
-        when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class))).thenReturn(listTagsForResourceResponse);
-
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-                .desiredResourceState(ResourceModel.builder().build())
-                .build();
-
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
-
-        assertThat(response).isNotNull();
-        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
-        assertThat(response.getCallbackContext()).isNull();
-        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
-        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getResourceModel()).isEqualTo(KEY_MODEL);
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
@@ -140,20 +140,21 @@ public class ReadHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_GetPolicyAccessDenied() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final KmsException exception = (KmsException) KmsException.builder().awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDeniedException").build()).build();
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
+        final KmsException exception = (KmsException) KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
+                .errorCode("AccessDeniedException").build())
+                .build();
         when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class)))
                 .thenThrow(exception);
 
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().keyRotationEnabled(true).build();
-        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class))).thenReturn(getKeyRotationStatusResponse);
+        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder()
+                .keyRotationEnabled(KEY_MODEL.getEnableKeyRotation())
+                .build();
+        when(proxyKmsClient.client().getKeyRotationStatus(any(GetKeyRotationStatusRequest.class)))
+                .thenReturn(getKeyRotationStatusResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
         when(proxyKmsClient.client().listResourceTags(any(ListResourceTagsRequest.class)))
                 .thenThrow(exception);
 
@@ -161,13 +162,15 @@ public class ReadHandlerTest extends AbstractTestBase{
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackContext()).isNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
         assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getResourceModel()).isEqualTo(KEY_MODEL_NULL_TAGS_NULL_POLICY);
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
@@ -179,13 +182,12 @@ public class ReadHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_GetPolicyUnknownKmsException() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
-        final KmsException exception = (KmsException) KmsException.builder().awsErrorDetails(AwsErrorDetails.builder().errorCode("Unknown").build()).build();
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
+        final KmsException exception = (KmsException) KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
+                .errorCode("Unknown")
+                .build()).build();
         when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class)))
                 .thenThrow(exception);
 
@@ -193,7 +195,8 @@ public class ReadHandlerTest extends AbstractTestBase{
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
@@ -208,13 +211,10 @@ public class ReadHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_GetPolicyUnknownError() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(KEY_METADATA).build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
         final AwsServiceException exception = AwsServiceException.builder().build();
-        final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
         when(proxyKmsClient.client().getKeyPolicy(any(GetKeyPolicyRequest.class)))
                 .thenThrow(exception);
 
@@ -222,7 +222,8 @@ public class ReadHandlerTest extends AbstractTestBase{
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
@@ -237,9 +238,9 @@ public class ReadHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_KeyDeleted_NotFound() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.PENDING_DELETION).build();
-
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder()
+                .keyMetadata(KEY_METADATA_PENDING_DELETION)
+                .build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
@@ -248,7 +249,8 @@ public class ReadHandlerTest extends AbstractTestBase{
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
         } catch (ResourceNotFoundException e) {
-            assertThat(e.getMessage()).isEqualTo("Resource of type 'AWS::KMS::Key' with identifier 'null' was not found.");
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type 'AWS::KMS::Key' with identifier '%s' was not found.", KEY_MODEL.getKeyId()));
         }
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
@@ -256,10 +258,8 @@ public class ReadHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_KeyNotFound() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final software.amazon.awssdk.services.kms.model.NotFoundException exception =software.amazon.awssdk.services.kms.model.NotFoundException.builder().build();
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final software.amazon.awssdk.services.kms.model.NotFoundException exception =
+                software.amazon.awssdk.services.kms.model.NotFoundException.builder().build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class)))
                 .thenThrow(exception);
 
@@ -267,7 +267,8 @@ public class ReadHandlerTest extends AbstractTestBase{
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
@@ -282,10 +283,8 @@ public class ReadHandlerTest extends AbstractTestBase{
 
     @Test
     public void handleRequest_GeneralException() {
-        final KeyMetadata keyMetadata = KeyMetadata.builder().build();
-
-        final software.amazon.awssdk.services.kms.model.KmsInternalException exception =software.amazon.awssdk.services.kms.model.KmsInternalException.builder().build();
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        final software.amazon.awssdk.services.kms.model.KmsInternalException exception =
+                software.amazon.awssdk.services.kms.model.KmsInternalException.builder().build();
         when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class)))
                 .thenThrow(exception);
 
@@ -293,7 +292,8 @@ public class ReadHandlerTest extends AbstractTestBase{
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);

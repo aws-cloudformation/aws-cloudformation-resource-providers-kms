@@ -1,25 +1,31 @@
 package software.amazon.kms.key;
 
 import java.time.Duration;
-import org.junit.jupiter.api.AfterEach;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
+import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
 import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
 import software.amazon.awssdk.services.kms.model.DisableKeyResponse;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
+import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.kms.key.ResourceModel.ResourceModelBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +37,35 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class CreateHandlerTest extends AbstractTestBase{
+    private static final String KEY_POLICY = "{\"foo\":\"bar\"}";
+    private static final ResourceModelBuilder KEY_MODEL_BUILDER = ResourceModel.builder()
+            .enableKeyRotation(false)
+            .keySpec(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString())
+            .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+            .description("mock-description")
+            .enabled(true)
+            .keyPolicy(ReadHandler.deserializeKeyPolicy(KEY_POLICY));
+    private static final ResourceModel KEY_MODEL = KEY_MODEL_BUILDER.build();
+    private static final ResourceModel KEY_MODEL_CREATED = KEY_MODEL_BUILDER
+            .keyId("mock-key-id")
+            .arn("mock-arn")
+            .build();
+    private static final ResourceModel KEY_MODEL_DISABLED_ROTATION_ENABLED = KEY_MODEL_BUILDER
+            .enabled(false)
+            .enableKeyRotation(true)
+            .build();
+    private static final ResourceModel KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED = KEY_MODEL_BUILDER
+            .keySpec(CustomerMasterKeySpec.RSA_4096.toString())
+            .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+            .enableKeyRotation(true)
+            .build();
+    private static final CreateKeyRequest EXPECTED_CREATE_KEY_REQUEST = CreateKeyRequest.builder()
+            .customerMasterKeySpec(KEY_MODEL.getKeySpec())
+            .keyUsage(KEY_MODEL.getKeyUsage())
+            .description(KEY_MODEL.getDescription())
+            .policy(KEY_POLICY)
+            .tags(Translator.translateTagsToSdk(MODEL_TAGS))
+            .build();
 
     @Mock
     private AmazonWebServicesClientProxy proxy;
@@ -51,12 +86,6 @@ public class CreateHandlerTest extends AbstractTestBase{
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
-    @AfterEach
-    public void post_execute() {
-        verify(kms, atLeastOnce()).serviceName();
-        verifyNoMoreInteractions(proxyKmsClient.client());
-    }
-
     // Key has been created, waiting on propagation
     @Test
     public void handleRequest_PartiallyPropagate() {
@@ -64,8 +93,9 @@ public class CreateHandlerTest extends AbstractTestBase{
         when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(ResourceModel.builder().build())
-            .build();
+                .desiredResourceState(KEY_MODEL)
+                .desiredResourceTags(MODEL_TAGS)
+                .build();
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -78,7 +108,8 @@ public class CreateHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(proxyKmsClient.client()).createKey(any(CreateKeyRequest.class));
+        verifyCreateKey();
+        verifyServiceNameCalledAtLeastOnce();
     }
 
     // Key has been created and provisioned, waiting on final propagation
@@ -95,12 +126,9 @@ public class CreateHandlerTest extends AbstractTestBase{
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(ResourceModel.builder()
-                .enableKeyRotation(true)
-                .enabled(false)
-                .keyId("sampleId")
-                .build())
-            .build();
+                .desiredResourceState(KEY_MODEL_DISABLED_ROTATION_ENABLED)
+                .desiredResourceTags(MODEL_TAGS)
+                .build();
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -113,9 +141,10 @@ public class CreateHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(proxyKmsClient.client()).createKey(any(CreateKeyRequest.class));
         verify(proxyKmsClient.client()).enableKeyRotation(any(EnableKeyRotationRequest.class));
         verify(proxyKmsClient.client()).disableKey(any(DisableKeyRequest.class));
+        verifyCreateKey();
+        verifyServiceNameCalledAtLeastOnce();
     }
 
     // Key has been created and fully provisioned, success
@@ -125,10 +154,9 @@ public class CreateHandlerTest extends AbstractTestBase{
         when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(ResourceModel.builder()
-                .keyId("sampleId")
-                .build())
-            .build();
+                .desiredResourceState(KEY_MODEL_CREATED)
+                .desiredResourceTags(MODEL_TAGS)
+                .build();
         final CallbackContext callbackContext = new CallbackContext();
         callbackContext.setPropagated(true);
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
@@ -141,6 +169,31 @@ public class CreateHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(proxyKmsClient.client()).createKey(any(CreateKeyRequest.class));
+        verifyCreateKey();
+        verifyServiceNameCalledAtLeastOnce();
+    }
+
+    @Test
+    public void handleRequest_AsymmetricRotationEnabled() {
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED)
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        } catch (CfnInvalidRequestException e) {
+            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+        }
+    }
+
+    private void verifyCreateKey() {
+        final ArgumentCaptor<CreateKeyRequest> requestCaptor = ArgumentCaptor.forClass(CreateKeyRequest.class);
+        verify(proxyKmsClient.client()).createKey(requestCaptor.capture());
+        assertThat(EXPECTED_CREATE_KEY_REQUEST.equalsBySdkFields(requestCaptor.getValue())).isTrue();
+    }
+
+    private void verifyServiceNameCalledAtLeastOnce() {
+        verify(kms, atLeastOnce()).serviceName();
+        verifyNoMoreInteractions(proxyKmsClient.client());
     }
 }

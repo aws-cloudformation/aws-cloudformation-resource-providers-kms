@@ -1,49 +1,55 @@
 package software.amazon.kms.key;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
-import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
-import software.amazon.awssdk.http.SdkHttpResponse;
-import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
-import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
-import software.amazon.awssdk.services.kms.model.DisableKeyResponse;
-import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
-import software.amazon.awssdk.services.kms.model.DisableKeyRotationResponse;
-import software.amazon.awssdk.services.kms.model.DisableKeyRotationRequest;
-import software.amazon.awssdk.services.kms.model.EnableKeyResponse;
-import software.amazon.awssdk.services.kms.model.EnableKeyRequest;
-import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
-import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
-import software.amazon.awssdk.services.kms.model.KeyState;
-import software.amazon.awssdk.services.kms.model.KmsException;
-import software.amazon.awssdk.services.kms.model.PutKeyPolicyResponse;
-import software.amazon.awssdk.services.kms.model.PutKeyPolicyRequest;
-import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
-import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
-import software.amazon.awssdk.services.kms.model.KeyMetadata;
-import software.amazon.awssdk.services.kms.model.TagResourceRequest;
-import software.amazon.awssdk.services.kms.model.TagResourceResponse;
-import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
-import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
-import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
-import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
-import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
-import software.amazon.cloudformation.exceptions.TerminalException;
-import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
-import software.amazon.cloudformation.proxy.OperationStatus;
-import software.amazon.cloudformation.proxy.ProgressEvent;
-import software.amazon.cloudformation.proxy.ProxyClient;
-import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
+import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
+import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
+import software.amazon.awssdk.services.kms.model.DisableKeyResponse;
+import software.amazon.awssdk.services.kms.model.DisableKeyRotationRequest;
+import software.amazon.awssdk.services.kms.model.DisableKeyRotationResponse;
+import software.amazon.awssdk.services.kms.model.EnableKeyRequest;
+import software.amazon.awssdk.services.kms.model.EnableKeyResponse;
+import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
+import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
+import software.amazon.awssdk.services.kms.model.KeyMetadata;
+import software.amazon.awssdk.services.kms.model.KeyState;
+import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.KmsException;
+import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
+import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
+import software.amazon.awssdk.services.kms.model.PutKeyPolicyRequest;
+import software.amazon.awssdk.services.kms.model.PutKeyPolicyResponse;
+import software.amazon.awssdk.services.kms.model.TagResourceRequest;
+import software.amazon.awssdk.services.kms.model.TagResourceResponse;
+import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
+import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
+import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
+import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
+import software.amazon.cloudformation.exceptions.TerminalException;
+import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.OperationStatus;
+import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
+import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -139,7 +145,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         verifyNoMoreInteractions(proxyKmsClient.client());
     }
 
-
     // SCENARIO 1: Enables Key, Disables Rotation
     // Step 1: Enable Key wait for 1 min
     @Test
@@ -202,7 +207,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
-        assertThat(response.getCallbackContext().isKeyStatusRotationUpdated()).isEqualTo(true);
         assertThat(response.getCallbackContext().isKeyPolicyUpdated()).isEqualTo(true);
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
         assertThat(response.getResourceModels()).isNull();
@@ -238,15 +242,12 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .previousResourceState(PREVIOUS_STATE_SCENARIO_2)
                 .build();
 
-        CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(false);
-
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
-        assertThat(response.getCallbackContext().isKeyStatusRotationUpdated()).isEqualTo(true);
         assertThat(response.getCallbackContext().isKeyPolicyUpdated()).isEqualTo(true);
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
         assertThat(response.getResourceModels()).isNull();
@@ -281,7 +282,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
-        assertThat(response.getCallbackContext().isKeyStatusRotationUpdated()).isEqualTo(true);
         assertThat(response.getCallbackContext().isKeyPolicyUpdated()).isEqualTo(true);
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
         assertThat(response.getResourceModels()).isNull();
@@ -314,7 +314,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
         assertThat(response.getCallbackContext()).isNotNull();
-        assertThat(response.getCallbackContext().isKeyStatusRotationUpdated()).isEqualTo(true);
         assertThat(response.getCallbackContext().isKeyPolicyUpdated()).isEqualTo(true);
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
         assertThat(response.getResourceModels()).isNull();
@@ -349,8 +348,119 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
         } catch (CfnInvalidRequestException e) {
-            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot modify the EnableKeyRotation property when the Enabled property is false. Set Enabled to true to modify the EnableKeyRotation property.");
+            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot change the EnableKeyRotation property while the Enabled property is false.");
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    // SCENARIO 6: Rotation is enabled for an Asymmetric key
+    // Expect a CfnInvalidRequestException to be thrown
+    @Test
+    public void handleRequest_AsymmetricRotationEnabled() {
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .enableKeyRotation(true)
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .enableKeyRotation(false)
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnInvalidRequestException e) {
+            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    // SCENARIO 7: Key usage is modified
+    // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
+    @Test
+    public void handleRequest_KeyUsageChanged() {
+        final String keyId = UUID.randomUUID().toString();
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnNotUpdatableException e) {
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                    ResourceModel.TYPE_NAME, keyId
+            ));
+        }
+
+        verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
+    }
+
+    // SCENARIO 8: Key spec is modified
+    // Expect a CfnNotUpdatableException to be thrown, resulting in resource re-creation
+    @Test
+    public void handleRequest_KeySpecChanged() {
+        final String keyId = UUID.randomUUID().toString();
+        final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(proxyKmsClient.client().describeKey(any(DescribeKeyRequest.class))).thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                                .build())
+                .previousResourceState(
+                        ResourceModel.builder()
+                                .keyId(keyId)
+                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                                .keySpec(CustomerMasterKeySpec.ECC_NIST_P256.toString())
+                                .build())
+                .build();
+
+        try {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+            fail();
+        } catch (final CfnNotUpdatableException e) {
+            assertThat(e.getMessage()).isEqualTo(String.format(
+                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                    ResourceModel.TYPE_NAME, keyId
+            ));
         }
 
         verify(proxyKmsClient.client()).describeKey(any(DescribeKeyRequest.class));
@@ -378,10 +488,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-        final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
-
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -415,11 +523,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-
-        final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
-
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -454,11 +559,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-
-        final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
-
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -497,11 +599,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-
-        final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
-
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -542,7 +641,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .build();
 
         final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
         callbackContext.setKeyPolicyUpdated(true);
         callbackContext.setPropagated(true);
 
@@ -578,7 +676,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .build();
 
         final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
         callbackContext.setKeyPolicyUpdated(true);
         callbackContext.setPropagated(true);
 
@@ -615,7 +712,6 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .build();
 
         final CallbackContext callbackContext = new CallbackContext();
-        callbackContext.setKeyStatusRotationUpdated(true);
         callbackContext.setKeyPolicyUpdated(true);
         callbackContext.setPropagated(true);
 
