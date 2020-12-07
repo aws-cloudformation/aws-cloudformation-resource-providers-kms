@@ -3,6 +3,7 @@ package software.amazon.kms.key;
 import static software.amazon.kms.key.ModelAdapter.setDefaults;
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
+
 import com.amazonaws.util.StringUtils;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -62,7 +63,7 @@ public class CreateHandler extends BaseHandlerStd {
                 if (!model.getEnabled()) {
                     // Update key status (Enabled by default)
                     return updateKeyStatus(proxy, proxyClient, model, callbackContext,
-                            model.getEnabled());
+                        model.getEnabled());
                 }
                 return progress;
             })

@@ -1,7 +1,7 @@
 package software.amazon.kms.alias;
 
-import software.amazon.cloudformation.LambdaWrapper;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.cloudformation.LambdaWrapper;
 
 public class ClientBuilder {
     public static KmsClient getClient() {

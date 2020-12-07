@@ -1,5 +1,15 @@
 package software.amazon.kms.alias;
 
+import static junit.framework.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static software.amazon.kms.alias.AliasHelper.THROTTLING_ERROR_CODE;
+
+
+import com.amazonaws.AmazonServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -7,9 +17,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.amazonaws.AmazonServiceException;
-
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CreateAliasRequest;
@@ -39,14 +46,6 @@ import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
-import static junit.framework.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static software.amazon.kms.alias.AliasHelper.THROTTLING_ERROR_CODE;
-
 @ExtendWith(MockitoExtension.class)
 public class AliasHelperTest extends AbstractTestBase {
 
@@ -70,9 +69,11 @@ public class AliasHelperTest extends AbstractTestBase {
         final CreateAliasRequest createAliasRequest = CreateAliasRequest.builder().build();
         final CreateAliasResponse createAliasResponse = CreateAliasResponse.builder().build();
 
-        doReturn(createAliasResponse).when(proxy).injectCredentialsAndInvokeV2(same(createAliasRequest), any());
+        doReturn(createAliasResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(createAliasRequest), any());
 
-        assertEquals(createAliasResponse, aliasHelper.createAlias(createAliasRequest, proxyKmsClient));
+        assertEquals(createAliasResponse,
+            aliasHelper.createAlias(createAliasRequest, proxyKmsClient));
     }
 
     @Test
@@ -80,9 +81,11 @@ public class AliasHelperTest extends AbstractTestBase {
         final DeleteAliasRequest deleteAliasRequest = DeleteAliasRequest.builder().build();
         final DeleteAliasResponse deleteAliasResponse = DeleteAliasResponse.builder().build();
 
-        doReturn(deleteAliasResponse).when(proxy).injectCredentialsAndInvokeV2(same(deleteAliasRequest), any());
+        doReturn(deleteAliasResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(deleteAliasRequest), any());
 
-        assertEquals(deleteAliasResponse, aliasHelper.deleteAlias(deleteAliasRequest, proxyKmsClient));
+        assertEquals(deleteAliasResponse,
+            aliasHelper.deleteAlias(deleteAliasRequest, proxyKmsClient));
     }
 
     @Test
@@ -90,9 +93,11 @@ public class AliasHelperTest extends AbstractTestBase {
         final ListAliasesRequest listAliasesRequest = ListAliasesRequest.builder().build();
         final ListAliasesResponse listAliasesResponse = ListAliasesResponse.builder().build();
 
-        doReturn(listAliasesResponse).when(proxy).injectCredentialsAndInvokeV2(same(listAliasesRequest), any());
+        doReturn(listAliasesResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(listAliasesRequest), any());
 
-        assertEquals(listAliasesResponse, aliasHelper.listAliases(listAliasesRequest, proxyKmsClient));
+        assertEquals(listAliasesResponse,
+            aliasHelper.listAliases(listAliasesRequest, proxyKmsClient));
     }
 
     @Test
@@ -100,34 +105,40 @@ public class AliasHelperTest extends AbstractTestBase {
         final UpdateAliasRequest updateAliasRequest = UpdateAliasRequest.builder().build();
         final UpdateAliasResponse updateAliasResponse = UpdateAliasResponse.builder().build();
 
-        doReturn(updateAliasResponse).when(proxy).injectCredentialsAndInvokeV2(same(updateAliasRequest), any());
+        doReturn(updateAliasResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(updateAliasRequest), any());
 
-        assertEquals(updateAliasResponse, aliasHelper.updateAlias(updateAliasRequest, proxyKmsClient));
+        assertEquals(updateAliasResponse,
+            aliasHelper.updateAlias(updateAliasRequest, proxyKmsClient));
     }
 
     @Test
     public void testAlreadyExists() {
-        doThrow(AlreadyExistsException.class).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(AlreadyExistsException.class).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnAlreadyExistsException.class);
     }
 
     @Test
     public void testInternalFailure() {
-        doThrow(InvalidMarkerException.class).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(InvalidMarkerException.class).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnInternalFailureException.class);
     }
 
     @Test
     public void testLimitExceeded() {
-        doThrow(LimitExceededException.class).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(LimitExceededException.class).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnServiceLimitExceededException.class);
     }
 
     @ParameterizedTest
-    @ValueSource(classes = { KmsInvalidStateException.class, InvalidArnException.class, InvalidAliasNameException.class })
+    @ValueSource(classes = {KmsInvalidStateException.class, InvalidArnException.class,
+        InvalidAliasNameException.class})
     public void testInvalidRequest(final Class<? extends Throwable> kmsException) {
         doThrow(kmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
@@ -135,7 +146,7 @@ public class AliasHelperTest extends AbstractTestBase {
     }
 
     @ParameterizedTest
-    @ValueSource(classes = { KmsInternalException.class, DependencyTimeoutException.class })
+    @ValueSource(classes = {KmsInternalException.class, DependencyTimeoutException.class})
     public void testServiceInternalError(final Class<? extends Throwable> kmsException) {
         doThrow(kmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
@@ -168,15 +179,19 @@ public class AliasHelperTest extends AbstractTestBase {
 
     private void assertAllRequestsThrow(final Class<? extends Throwable> cfnException) {
         final CreateAliasRequest createAliasRequest = CreateAliasRequest.builder().build();
-        assertThrows(cfnException, () -> aliasHelper.createAlias(createAliasRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> aliasHelper.createAlias(createAliasRequest, proxyKmsClient));
 
         final DeleteAliasRequest deleteAliasRequest = DeleteAliasRequest.builder().build();
-        assertThrows(cfnException, () -> aliasHelper.deleteAlias(deleteAliasRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> aliasHelper.deleteAlias(deleteAliasRequest, proxyKmsClient));
 
         final ListAliasesRequest listAliasesRequest = ListAliasesRequest.builder().build();
-        assertThrows(cfnException, () -> aliasHelper.listAliases(listAliasesRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> aliasHelper.listAliases(listAliasesRequest, proxyKmsClient));
 
         final UpdateAliasRequest updateAliasRequest = UpdateAliasRequest.builder().build();
-        assertThrows(cfnException, () -> aliasHelper.updateAlias(updateAliasRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> aliasHelper.updateAlias(updateAliasRequest, proxyKmsClient));
     }
 }

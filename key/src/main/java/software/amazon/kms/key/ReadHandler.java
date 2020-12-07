@@ -5,12 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
-
 import org.apache.commons.collections.CollectionUtils;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
-import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
@@ -55,25 +52,25 @@ public class ReadHandler extends BaseHandlerStd {
                         return ProgressEvent.progress(model, callbackContext);
                     })
             )
-                // Retrieving the key policy can potentially cause an access denied exception
+            // Retrieving the key policy can potentially cause an access denied exception
             .then(progress -> softFailAccessDenied(() -> proxy
-                    .initiate("kms::get-key-policy", proxyClient, model, callbackContext)
-                    .translateToServiceRequest((m) -> Translator.getKeyPolicyRequest(m.getKeyId()))
-                    .makeServiceCall(keyHelper::getKeyPolicy)
-                    .done(getKeyPolicyResponse -> {
-                        model.setKeyPolicy(deserializeKeyPolicy(getKeyPolicyResponse.policy()));
-                        return ProgressEvent.progress(model, callbackContext);
-                    }), model, callbackContext)
+                .initiate("kms::get-key-policy", proxyClient, model, callbackContext)
+                .translateToServiceRequest((m) -> Translator.getKeyPolicyRequest(m.getKeyId()))
+                .makeServiceCall(keyHelper::getKeyPolicy)
+                .done(getKeyPolicyResponse -> {
+                    model.setKeyPolicy(deserializeKeyPolicy(getKeyPolicyResponse.policy()));
+                    return ProgressEvent.progress(model, callbackContext);
+                }), model, callbackContext)
             )
-                // Retrieving the rotation status can potentially cause an access denied exception
+            // Retrieving the rotation status can potentially cause an access denied exception
             .then(progress -> softFailAccessDenied(() -> proxy
-                    .initiate("kms::get-key-rotation-status", proxyClient, model, callbackContext)
-                    .translateToServiceRequest(Translator::getKeyRotationStatusRequest)
-                    .makeServiceCall(keyHelper::getKeyRotationStatus)
-                    .done(getKeyRotationStatusResponse -> {
-                        model.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
-                        return ProgressEvent.progress(model, callbackContext);
-                    }), model, callbackContext)
+                .initiate("kms::get-key-rotation-status", proxyClient, model, callbackContext)
+                .translateToServiceRequest(Translator::getKeyRotationStatusRequest)
+                .makeServiceCall(keyHelper::getKeyRotationStatus)
+                .done(getKeyRotationStatusResponse -> {
+                    model.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
+                    return ProgressEvent.progress(model, callbackContext);
+                }), model, callbackContext)
             )
             // Retrieving the tags can potentially cause an access denied exception
             .then(

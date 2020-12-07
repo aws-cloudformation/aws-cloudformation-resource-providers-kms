@@ -1,9 +1,7 @@
 package software.amazon.kms.alias;
 
-import java.util.function.Supplier;
-
 import com.amazonaws.AmazonServiceException;
-
+import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CreateAliasRequest;
@@ -40,26 +38,30 @@ public class AliasHelper {
     private static final String UPDATE_ALIAS = "UpdateAlias";
 
     public CreateAliasResponse createAlias(final CreateAliasRequest createAliasRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(CREATE_ALIAS, () -> proxyClient.injectCredentialsAndInvokeV2(createAliasRequest,
+                                           final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(CREATE_ALIAS,
+            () -> proxyClient.injectCredentialsAndInvokeV2(createAliasRequest,
                 proxyClient.client()::createAlias));
     }
 
     public DeleteAliasResponse deleteAlias(final DeleteAliasRequest deleteAliasRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(DELETE_ALIAS, () -> proxyClient.injectCredentialsAndInvokeV2(deleteAliasRequest,
+                                           final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(DELETE_ALIAS,
+            () -> proxyClient.injectCredentialsAndInvokeV2(deleteAliasRequest,
                 proxyClient.client()::deleteAlias));
     }
 
     public ListAliasesResponse listAliases(final ListAliasesRequest deleteAliasRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(LIST_ALIASES, () -> proxyClient.injectCredentialsAndInvokeV2(deleteAliasRequest,
+                                           final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(LIST_ALIASES,
+            () -> proxyClient.injectCredentialsAndInvokeV2(deleteAliasRequest,
                 proxyClient.client()::listAliases));
     }
 
     public UpdateAliasResponse updateAlias(final UpdateAliasRequest updateAliasRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(UPDATE_ALIAS, () -> proxyClient.injectCredentialsAndInvokeV2(updateAliasRequest,
+                                           final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(UPDATE_ALIAS,
+            () -> proxyClient.injectCredentialsAndInvokeV2(updateAliasRequest,
                 proxyClient.client()::updateAlias));
     }
 

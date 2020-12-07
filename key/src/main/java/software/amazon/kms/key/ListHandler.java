@@ -27,7 +27,8 @@ public class ListHandler extends BaseHandlerStd {
         final CallbackContext callbackContext,
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
-        final ListKeysResponse listKeysResponse = keyHelper.listKeys(Translator.listKeysRequest(request.getNextToken()),
+        final ListKeysResponse listKeysResponse =
+            keyHelper.listKeys(Translator.listKeysRequest(request.getNextToken()),
                 proxyClient);
 
         final List<ResourceModel> models = listKeysResponse.keys().stream()

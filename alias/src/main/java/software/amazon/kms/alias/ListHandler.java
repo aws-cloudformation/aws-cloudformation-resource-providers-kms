@@ -1,7 +1,6 @@
 package software.amazon.kms.alias;
 
 import java.util.stream.Collectors;
-
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
@@ -29,14 +28,15 @@ public class ListHandler extends BaseHandlerStd {
         final ResourceModel model = request.getDesiredResourceState();
 
         return proxy.initiate("kms::list-aliases", proxyClient, model, callbackContext)
-                .translateToServiceRequest(m -> Translator.listAliasesRequest(m, request.getNextToken()))
-                .makeServiceCall(aliasHelper::listAliases)
-                .done(listAliasesResponse -> ProgressEvent.<ResourceModel, CallbackContext>builder()
-                        .resourceModels(listAliasesResponse.aliases().stream()
-                                .map(Translator::translateToResourceModel)
-                                .collect(Collectors.toList()))
-                        .status(OperationStatus.SUCCESS)
-                        .nextToken(listAliasesResponse.nextMarker())
-                        .build());
+            .translateToServiceRequest(
+                m -> Translator.listAliasesRequest(m, request.getNextToken()))
+            .makeServiceCall(aliasHelper::listAliases)
+            .done(listAliasesResponse -> ProgressEvent.<ResourceModel, CallbackContext>builder()
+                .resourceModels(listAliasesResponse.aliases().stream()
+                    .map(Translator::translateToResourceModel)
+                    .collect(Collectors.toList()))
+                .status(OperationStatus.SUCCESS)
+                .nextToken(listAliasesResponse.nextMarker())
+                .build());
     }
 }

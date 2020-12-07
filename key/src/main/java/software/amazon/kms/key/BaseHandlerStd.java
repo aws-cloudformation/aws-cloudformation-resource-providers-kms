@@ -1,45 +1,20 @@
 package software.amazon.kms.key;
 
-import javax.security.auth.callback.Callback;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Supplier;
-
-import com.amazonaws.AmazonServiceException;
-
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
-import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
-import software.amazon.awssdk.services.kms.model.DisabledException;
-import software.amazon.awssdk.services.kms.model.InvalidArnException;
-import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
-import software.amazon.awssdk.services.kms.model.KmsException;
-import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
-import software.amazon.awssdk.services.kms.model.LimitExceededException;
-import software.amazon.awssdk.services.kms.model.MalformedPolicyDocumentException;
-import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.Tag;
-import software.amazon.awssdk.services.kms.model.TagException;
-import software.amazon.awssdk.services.kms.model.UnsupportedOperationException;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
-import software.amazon.cloudformation.exceptions.CfnAlreadyExistsException;
-import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
-import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
-import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorException;
-import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
-import software.amazon.cloudformation.exceptions.CfnThrottlingException;
-import software.amazon.cloudformation.exceptions.ResourceNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
@@ -141,25 +116,28 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         final CallbackContext callbackContext = progressEvent.getCallbackContext();
         ProgressEvent<ResourceModel, CallbackContext> progress = progressEvent;
         do { // pagination to make sure that all the tags are retrieved
-            final Supplier<ProgressEvent<ResourceModel, CallbackContext>> progressEventSupplier = () -> proxy
+            final Supplier<ProgressEvent<ResourceModel, CallbackContext>> progressEventSupplier =
+                () -> proxy
                     .initiate("kms::list-tag-key:" + callbackContext.getMarker(), proxyClient,
-                            progressEvent.getResourceModel(), callbackContext)
+                        progressEvent.getResourceModel(), callbackContext)
                     .translateToServiceRequest((model) -> Translator
-                            .listResourceTagsRequest(model, callbackContext.getMarker()))
+                        .listResourceTagsRequest(model, callbackContext.getMarker()))
                     .makeServiceCall(keyHelper::listResourceTags)
                     .done(
-                            (listResourceTagsRequest, listResourceTagsResponse, proxyInvocation,
-                                    resourceModel, context) -> {
-                                final Set<Tag> existingTags =
-                                        Optional.ofNullable(context.getExistingTags()).orElse(new HashSet<>());
-                                existingTags.addAll(new HashSet<>(listResourceTagsResponse.tags()));
-                                context.setExistingTags(existingTags);
-                                context.setMarker(listResourceTagsResponse.nextMarker());
-                                return ProgressEvent.progress(resourceModel, context);
-                            });
+                        (listResourceTagsRequest, listResourceTagsResponse, proxyInvocation,
+                         resourceModel, context) -> {
+                            final Set<Tag> existingTags =
+                                Optional.ofNullable(context.getExistingTags())
+                                    .orElse(new HashSet<>());
+                            existingTags.addAll(new HashSet<>(listResourceTagsResponse.tags()));
+                            context.setExistingTags(existingTags);
+                            context.setMarker(listResourceTagsResponse.nextMarker());
+                            return ProgressEvent.progress(resourceModel, context);
+                        });
 
             // for Read Handler -> soft fail for GetAtt
-            progress = softFailOnAccessDenied ? softFailAccessDenied(progressEventSupplier, progress.getResourceModel(),
+            progress = softFailOnAccessDenied ?
+                softFailAccessDenied(progressEventSupplier, progress.getResourceModel(),
                     progress.getCallbackContext()) : progressEventSupplier.get();
         } while (callbackContext.getMarker() != null);
         return progress;
@@ -181,11 +159,11 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
 
     // lambda to filter out access denied exception (used for Read Handler only)
     protected static ProgressEvent<ResourceModel, CallbackContext> handleAccessDenied(
-            final AwsRequest awsRequest,
-            final Exception e,
-            final ProxyClient<KmsClient> proxyClient,
-            final ResourceModel model,
-            final CallbackContext context
+        final AwsRequest awsRequest,
+        final Exception e,
+        final ProxyClient<KmsClient> proxyClient,
+        final ResourceModel model,
+        final CallbackContext context
     ) {
         if (e instanceof CfnAccessDeniedException) {
             return ProgressEvent.progress(model, context);
@@ -193,9 +171,10 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.GeneralServiceException);
     }
 
-    protected ProgressEvent<ResourceModel, CallbackContext> softFailAccessDenied(final Supplier<ProgressEvent<
+    protected ProgressEvent<ResourceModel, CallbackContext> softFailAccessDenied(
+        final Supplier<ProgressEvent<
             ResourceModel, CallbackContext>> eventSupplier, final ResourceModel model,
-            final CallbackContext callbackContext) {
+        final CallbackContext callbackContext) {
         try {
             return eventSupplier.get();
         } catch (final CfnAccessDeniedException e) {

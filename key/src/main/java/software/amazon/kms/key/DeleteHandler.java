@@ -33,10 +33,10 @@ public class DeleteHandler extends BaseHandlerStd {
 
         try {
             return proxy.initiate("kms::delete-key", proxyClient, model, callbackContext)
-                    .translateToServiceRequest(Translator::scheduleKeyDeletionRequest)
-                    .makeServiceCall(keyHelper::scheduleKeyDeletion)
-                    .stabilize(this::isDeleted)
-                    .done(scheduleKeyDeletionResponse -> ProgressEvent.defaultSuccessHandler(null));
+                .translateToServiceRequest(Translator::scheduleKeyDeletionRequest)
+                .makeServiceCall(keyHelper::scheduleKeyDeletion)
+                .stabilize(this::isDeleted)
+                .done(scheduleKeyDeletionResponse -> ProgressEvent.defaultSuccessHandler(null));
         } catch (final CfnInvalidRequestException e) {
             if (e.getCause() instanceof KmsInvalidStateException) {
                 // Invalid state can only happen if the key is pending deletion,
@@ -49,11 +49,13 @@ public class DeleteHandler extends BaseHandlerStd {
     }
 
     private boolean isDeleted(final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest,
-        final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse,
-        final ProxyClient<KmsClient> proxyClient,
-        final ResourceModel resourceModel, final CallbackContext callbackContext) {
+                              final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse,
+                              final ProxyClient<KmsClient> proxyClient,
+                              final ResourceModel resourceModel,
+                              final CallbackContext callbackContext) {
         final KeyState keyState =
-            keyHelper.describeKey(Translator.describeKeyRequest(resourceModel), proxyClient).keyMetadata().keyState();
+            keyHelper.describeKey(Translator.describeKeyRequest(resourceModel), proxyClient)
+                .keyMetadata().keyState();
         return keyState.equals(KeyState.PENDING_DELETION);
     }
 }

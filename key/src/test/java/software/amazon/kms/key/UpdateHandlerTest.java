@@ -1,15 +1,24 @@
 package software.amazon.kms.key;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
+
 import java.time.Duration;
 import java.util.UUID;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -41,27 +50,14 @@ import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
-import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
-public class UpdateHandlerTest extends AbstractTestBase{
+public class UpdateHandlerTest extends AbstractTestBase {
 
     @Mock
     private AmazonWebServicesClientProxy proxy;
@@ -94,52 +90,53 @@ public class UpdateHandlerTest extends AbstractTestBase{
     @BeforeEach
     public void setup() {
         handler = new UpdateHandler(keyHelper);
-        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
+        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS,
+            () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
 
         DESIRED_STATE_SCENARIO_1 = ResourceModel.builder()
-                .description("sample")
-                .enabled(true)
-                .enableKeyRotation(false)
-                .keyPolicy("{new policy}")
-                .build();
+            .description("sample")
+            .enabled(true)
+            .enableKeyRotation(false)
+            .keyPolicy("{new policy}")
+            .build();
         PREVIOUS_STATE_SCENARIO_1 = ResourceModel.builder()
-                .enabled(false)
-                .enableKeyRotation(true)
-                .keyPolicy("{old policy}")
-                .build();
+            .enabled(false)
+            .enableKeyRotation(true)
+            .keyPolicy("{old policy}")
+            .build();
         DESIRED_STATE_SCENARIO_2 = ResourceModel.builder()
-                .enabled(false)
-                .enableKeyRotation(true)
-                .keyPolicy("{new policy}")
-                .build();
+            .enabled(false)
+            .enableKeyRotation(true)
+            .keyPolicy("{new policy}")
+            .build();
         PREVIOUS_STATE_SCENARIO_2 = ResourceModel.builder()
-                .keyPolicy("{old policy}")
-                .build();
+            .keyPolicy("{old policy}")
+            .build();
         DESIRED_STATE_SCENARIO_3 = ResourceModel.builder()
-                .keyPolicy("{new policy}")
-                .build();
+            .keyPolicy("{new policy}")
+            .build();
         PREVIOUS_STATE_SCENARIO_3 = ResourceModel.builder()
-                .keyPolicy("{old policy}")
-                .build();
+            .keyPolicy("{old policy}")
+            .build();
         DESIRED_STATE_SCENARIO_4 = ResourceModel.builder()
-                .enabled(false)
-                .enableKeyRotation(false)
-                .keyPolicy("{new policy}")
-                .build();
+            .enabled(false)
+            .enableKeyRotation(false)
+            .keyPolicy("{new policy}")
+            .build();
         PREVIOUS_STATE_SCENARIO_4 = ResourceModel.builder()
-                .enabled(false)
-                .enableKeyRotation(false)
-                .keyPolicy("{old policy}")
-                .build();
+            .enabled(false)
+            .enableKeyRotation(false)
+            .keyPolicy("{old policy}")
+            .build();
 
         accessDeniedException = new CfnAccessDeniedException(KmsException.builder().awsErrorDetails(
-                AwsErrorDetails.builder()
-                        .sdkHttpResponse(SdkHttpResponse.builder()
-                                .statusCode(400)
-                                .build())
-                        .errorCode("AccessDeniedException")
-                        .errorMessage("... not authorized ...").build()
+            AwsErrorDetails.builder()
+                .sdkHttpResponse(SdkHttpResponse.builder()
+                    .statusCode(400)
+                    .build())
+                .errorCode("AccessDeniedException")
+                .errorMessage("... not authorized ...").build()
         ).build());
     }
 
@@ -155,18 +152,23 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_UpdateCase1EnableKeyStep() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.DISABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
         final EnableKeyResponse enableKeyResponse = EnableKeyResponse.builder().build();
-        when(keyHelper.enableKey(any(EnableKeyRequest.class), eq(proxyKmsClient))).thenReturn(enableKeyResponse);
+        when(keyHelper.enableKey(any(EnableKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(enableKeyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(DESIRED_STATE_SCENARIO_1)
                 .previousResourceState(PREVIOUS_STATE_SCENARIO_1)
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -186,19 +188,28 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_UpdateCase1DisableRotationAndUpdatePolicyStep() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.DISABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final DisableKeyRotationResponse disableKeyRotationResponse = DisableKeyRotationResponse.builder().build();
-        when(keyHelper.disableKeyRotation(any(DisableKeyRotationRequest.class), eq(proxyKmsClient))).thenReturn(disableKeyRotationResponse);
+        final DisableKeyRotationResponse disableKeyRotationResponse =
+            DisableKeyRotationResponse.builder().build();
+        when(keyHelper.disableKeyRotation(any(DisableKeyRotationRequest.class), eq(proxyKmsClient)))
+            .thenReturn(disableKeyRotationResponse);
 
-        final UpdateKeyDescriptionResponse updateKeyDescriptionResponse = UpdateKeyDescriptionResponse.builder().build();
-        when(keyHelper.updateKeyDescription(any(UpdateKeyDescriptionRequest.class), eq(proxyKmsClient))).thenReturn(updateKeyDescriptionResponse);
+        final UpdateKeyDescriptionResponse updateKeyDescriptionResponse =
+            UpdateKeyDescriptionResponse.builder().build();
+        when(keyHelper
+            .updateKeyDescription(any(UpdateKeyDescriptionRequest.class), eq(proxyKmsClient)))
+            .thenReturn(updateKeyDescriptionResponse);
 
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
-        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient))).thenReturn(putKeyPolicyResponse);
+        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(putKeyPolicyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(DESIRED_STATE_SCENARIO_1)
                 .previousResourceState(PREVIOUS_STATE_SCENARIO_1)
                 .build();
@@ -206,7 +217,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         CallbackContext callbackContext = new CallbackContext();
         callbackContext.setKeyEnabled(true);
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -218,8 +230,10 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
-        verify(keyHelper).disableKeyRotation(any(DisableKeyRotationRequest.class), eq(proxyKmsClient));
-        verify(keyHelper).updateKeyDescription(any(UpdateKeyDescriptionRequest.class), eq(proxyKmsClient));
+        verify(keyHelper)
+            .disableKeyRotation(any(DisableKeyRotationRequest.class), eq(proxyKmsClient));
+        verify(keyHelper)
+            .updateKeyDescription(any(UpdateKeyDescriptionRequest.class), eq(proxyKmsClient));
         verify(keyHelper).putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient));
     }
 
@@ -229,24 +243,32 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_UpdateCase2EnableRotationAndDisableKeyStep() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final EnableKeyRotationResponse enableKeyRotationResponse = EnableKeyRotationResponse.builder().build();
-        when(keyHelper.enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient))).thenReturn(enableKeyRotationResponse);
+        final EnableKeyRotationResponse enableKeyRotationResponse =
+            EnableKeyRotationResponse.builder().build();
+        when(keyHelper.enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+            .thenReturn(enableKeyRotationResponse);
 
         final DisableKeyResponse disableKeyResponse = DisableKeyResponse.builder().build();
-        when(keyHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient))).thenReturn(disableKeyResponse);
+        when(keyHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(disableKeyResponse);
 
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
-        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient))).thenReturn(putKeyPolicyResponse);
+        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(putKeyPolicyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(DESIRED_STATE_SCENARIO_2)
                 .previousResourceState(PREVIOUS_STATE_SCENARIO_2)
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request,
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -259,7 +281,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
-        verify(keyHelper).enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
+        verify(keyHelper)
+            .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
         verify(keyHelper).disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient));
         verify(keyHelper).putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient));
     }
@@ -270,18 +293,23 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_UpdateCase3PutPolicyStep() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
-        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient))).thenReturn(putKeyPolicyResponse);
+        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(putKeyPolicyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(DESIRED_STATE_SCENARIO_3)
                 .previousResourceState(PREVIOUS_STATE_SCENARIO_3)
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -302,18 +330,23 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_UpdateCase4PutPolicyStep() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.DISABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
-        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient))).thenReturn(putKeyPolicyResponse);
+        when(keyHelper.putKeyPolicy(any(PutKeyPolicyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(putKeyPolicyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(DESIRED_STATE_SCENARIO_4)
                 .previousResourceState(PREVIOUS_STATE_SCENARIO_4)
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
@@ -334,27 +367,31 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_InvalidRequest() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.DISABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(
-                        ResourceModel.builder()
-                                .enabled(false)
-                                .enableKeyRotation(false)
-                                .build())
+                    ResourceModel.builder()
+                        .enabled(false)
+                        .enableKeyRotation(false)
+                        .build())
                 .previousResourceState(
-                        ResourceModel.builder()
-                                .enabled(false)
-                                .enableKeyRotation(true)
-                                .build())
-            .build();
+                    ResourceModel.builder()
+                        .enabled(false)
+                        .enableKeyRotation(true)
+                        .build())
+                .build();
 
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
             fail();
         } catch (CfnInvalidRequestException e) {
-            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot change the EnableKeyRotation property while the Enabled property is false.");
+            assertThat(e.getMessage()).isEqualTo(
+                "Invalid request provided: You cannot change the EnableKeyRotation property while the Enabled property is false.");
         }
 
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
@@ -366,29 +403,33 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_AsymmetricRotationEnabled() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(
-                        ResourceModel.builder()
-                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
-                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
-                                .enableKeyRotation(true)
-                                .build())
+                    ResourceModel.builder()
+                        .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                        .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                        .enableKeyRotation(true)
+                        .build())
                 .previousResourceState(
-                        ResourceModel.builder()
-                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
-                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
-                                .enableKeyRotation(false)
-                                .build())
+                    ResourceModel.builder()
+                        .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                        .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                        .enableKeyRotation(false)
+                        .build())
                 .build();
 
         try {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
             fail();
         } catch (final CfnInvalidRequestException e) {
-            assertThat(e.getMessage()).isEqualTo("Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+            assertThat(e.getMessage()).isEqualTo(
+                "Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric keys.");
         }
 
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
@@ -401,22 +442,25 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final String keyId = UUID.randomUUID().toString();
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(
-                        ResourceModel.builder()
-                                .keyId(keyId)
-                                .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
-                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
-                                .build())
+                    ResourceModel.builder()
+                        .keyId(keyId)
+                        .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+                        .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                        .build())
                 .previousResourceState(
-                        ResourceModel.builder()
-                                .keyId(keyId)
-                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
-                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
-                                .build())
+                    ResourceModel.builder()
+                        .keyId(keyId)
+                        .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                        .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                        .build())
                 .build();
 
         try {
@@ -424,8 +468,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
             fail();
         } catch (final CfnNotUpdatableException e) {
             assertThat(e.getMessage()).isEqualTo(String.format(
-                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
-                    ResourceModel.TYPE_NAME, keyId
+                "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                ResourceModel.TYPE_NAME, keyId
             ));
         }
 
@@ -439,22 +483,25 @@ public class UpdateHandlerTest extends AbstractTestBase{
         final String keyId = UUID.randomUUID().toString();
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(
-                        ResourceModel.builder()
-                                .keyId(keyId)
-                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
-                                .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
-                                .build())
+                    ResourceModel.builder()
+                        .keyId(keyId)
+                        .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                        .keySpec(CustomerMasterKeySpec.RSA_2048.toString())
+                        .build())
                 .previousResourceState(
-                        ResourceModel.builder()
-                                .keyId(keyId)
-                                .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
-                                .keySpec(CustomerMasterKeySpec.ECC_NIST_P256.toString())
-                                .build())
+                    ResourceModel.builder()
+                        .keyId(keyId)
+                        .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+                        .keySpec(CustomerMasterKeySpec.ECC_NIST_P256.toString())
+                        .build())
                 .build();
 
         try {
@@ -462,8 +509,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
             fail();
         } catch (final CfnNotUpdatableException e) {
             assertThat(e.getMessage()).isEqualTo(String.format(
-                    "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
-                    ResourceModel.TYPE_NAME, keyId
+                "Resource of type '%s' with identifier '%s' is not updatable with parameters provided.",
+                ResourceModel.TYPE_NAME, keyId
             ));
         }
 
@@ -474,25 +521,33 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_TagUpdate() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
-        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient))).thenReturn(listTagsForResourceResponse);
+        final ListResourceTagsResponse listTagsForResourceResponse =
+            ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
+        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient)))
+            .thenReturn(listTagsForResourceResponse);
 
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
-        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient))).thenReturn(untagResourceResponse);
+        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient)))
+            .thenReturn(untagResourceResponse);
 
         final TagResourceResponse tagResourceResponse = TagResourceResponse.builder().build();
-        when(keyHelper.tagResource(any(TagResourceRequest.class), eq(proxyKmsClient))).thenReturn(tagResourceResponse);
+        when(keyHelper.tagResource(any(TagResourceRequest.class), eq(proxyKmsClient)))
+            .thenReturn(tagResourceResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request,
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -516,18 +571,23 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_ListTagSoftFailUpdate() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient))).thenThrow(accessDeniedException);
+        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient)))
+            .thenThrow(accessDeniedException);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request,
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -549,21 +609,28 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_UntagSoftFailUpdate() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
-        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient))).thenReturn(listTagsForResourceResponse);
+        final ListResourceTagsResponse listTagsForResourceResponse =
+            ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
+        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient)))
+            .thenReturn(listTagsForResourceResponse);
 
-        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient))).thenThrow(accessDeniedException);
+        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient)))
+            .thenThrow(accessDeniedException);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request,
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -586,18 +653,25 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_TagSoftFailUpdate() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
-        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient))).thenReturn(listTagsForResourceResponse);
+        final ListResourceTagsResponse listTagsForResourceResponse =
+            ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker(null).build();
+        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient)))
+            .thenReturn(listTagsForResourceResponse);
 
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
-        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient))).thenReturn(untagResourceResponse);
+        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient)))
+            .thenReturn(untagResourceResponse);
 
-        when(keyHelper.tagResource(any(TagResourceRequest.class), eq(proxyKmsClient))).thenThrow(accessDeniedException);
+        when(keyHelper.tagResource(any(TagResourceRequest.class), eq(proxyKmsClient)))
+            .thenThrow(accessDeniedException);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceTags(MODEL_TAGS)
                 .desiredResourceState(ResourceModel.builder().keyPolicy("").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("").build())
@@ -605,7 +679,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
 
 
         try {
-            final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+            final ProgressEvent<ResourceModel, CallbackContext> response =
+                handler.handleRequest(proxy, request,
                     new CallbackContext(), proxyKmsClient, logger);
 
             assertThat(response).isNotNull();
@@ -632,19 +707,26 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_SimpleSuccessPaginatedTags() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse1 = ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker("marker").build();
-        final ListResourceTagsResponse listTagsForResourceResponse2 = ListResourceTagsResponse.builder().build();
-        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient))).thenReturn(
+        final ListResourceTagsResponse listTagsForResourceResponse1 =
+            ListResourceTagsResponse.builder().tags(SDK_TAGS).nextMarker("marker").build();
+        final ListResourceTagsResponse listTagsForResourceResponse2 =
+            ListResourceTagsResponse.builder().build();
+        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient)))
+            .thenReturn(
                 listTagsForResourceResponse1,
                 listTagsForResourceResponse2);
 
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
-        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient))).thenReturn(untagResourceResponse);
+        when(keyHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient)))
+            .thenReturn(untagResourceResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(ResourceModel.builder().keyPolicy("new").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("old").build())
                 .build();
@@ -653,7 +735,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         callbackContext.setKeyPolicyUpdated(true);
         callbackContext.setPropagated(true);
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -665,7 +748,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
 
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
-        verify(keyHelper, times(2)).listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient));
+        verify(keyHelper, times(2))
+            .listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient));
         verify(keyHelper).untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient));
     }
 
@@ -673,13 +757,18 @@ public class UpdateHandlerTest extends AbstractTestBase{
     public void handleRequest_SimpleSuccess() {
         final KeyMetadata keyMetadata = KeyMetadata.builder().keyState(KeyState.ENABLED).build();
 
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
+        final DescribeKeyResponse describeKeyResponse =
+            DescribeKeyResponse.builder().keyMetadata(keyMetadata).build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ListResourceTagsResponse listTagsForResourceResponse = ListResourceTagsResponse.builder().build();
-        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient))).thenReturn(listTagsForResourceResponse);
+        final ListResourceTagsResponse listTagsForResourceResponse =
+            ListResourceTagsResponse.builder().build();
+        when(keyHelper.listResourceTags(any(ListResourceTagsRequest.class), eq(proxyKmsClient)))
+            .thenReturn(listTagsForResourceResponse);
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(ResourceModel.builder().keyPolicy("new").build())
                 .previousResourceState(ResourceModel.builder().keyPolicy("old").build())
                 .build();
@@ -688,7 +777,8 @@ public class UpdateHandlerTest extends AbstractTestBase{
         callbackContext.setKeyPolicyUpdated(true);
         callbackContext.setPropagated(true);
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);

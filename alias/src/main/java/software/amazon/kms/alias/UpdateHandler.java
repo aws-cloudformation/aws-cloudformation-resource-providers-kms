@@ -26,8 +26,8 @@ public class UpdateHandler extends BaseHandlerStd {
         final ResourceModel model = request.getDesiredResourceState();
 
         return proxy.initiate("kms::update-alias", proxyClient, model, callbackContext)
-                .translateToServiceRequest(Translator::updateAliasRequest)
-                .makeServiceCall(aliasHelper::updateAlias)
-                .done(createAliasResponse -> ProgressEvent.defaultSuccessHandler(model));
+            .translateToServiceRequest(Translator::updateAliasRequest)
+            .makeServiceCall(aliasHelper::updateAlias)
+            .done(createAliasResponse -> ProgressEvent.defaultSuccessHandler(model));
     }
 }

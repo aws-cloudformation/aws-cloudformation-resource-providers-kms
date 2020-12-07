@@ -1,9 +1,7 @@
 package software.amazon.kms.key;
 
-import java.util.function.Supplier;
-
 import com.amazonaws.AmazonServiceException;
-
+import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
@@ -24,7 +22,6 @@ import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
-import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
 import software.amazon.awssdk.services.kms.model.KmsException;
@@ -81,92 +78,108 @@ public class KeyHelper {
     private static final String UPDATE_KEY_DESCRIPTION = "UpdateKeyDescription";
 
     public CreateKeyResponse createKey(final CreateKeyRequest createKeyRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(CREATE_KEY, () -> proxyClient.injectCredentialsAndInvokeV2(createKeyRequest,
+                                       final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(CREATE_KEY,
+            () -> proxyClient.injectCredentialsAndInvokeV2(createKeyRequest,
                 proxyClient.client()::createKey));
     }
 
     public DescribeKeyResponse describeKey(final DescribeKeyRequest describeKeyRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(DESCRIBE_KEY, () -> proxyClient.injectCredentialsAndInvokeV2(describeKeyRequest,
+                                           final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(DESCRIBE_KEY,
+            () -> proxyClient.injectCredentialsAndInvokeV2(describeKeyRequest,
                 proxyClient.client()::describeKey));
     }
 
     public DisableKeyResponse disableKey(final DisableKeyRequest disableKeyRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(DISABLE_KEY, () -> proxyClient.injectCredentialsAndInvokeV2(disableKeyRequest,
+                                         final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(DISABLE_KEY,
+            () -> proxyClient.injectCredentialsAndInvokeV2(disableKeyRequest,
                 proxyClient.client()::disableKey));
     }
 
     public EnableKeyResponse enableKey(final EnableKeyRequest enableKeyRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(ENABLE_KEY, () -> proxyClient.injectCredentialsAndInvokeV2(enableKeyRequest,
+                                       final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(ENABLE_KEY,
+            () -> proxyClient.injectCredentialsAndInvokeV2(enableKeyRequest,
                 proxyClient.client()::enableKey));
     }
 
-    public DisableKeyRotationResponse disableKeyRotation(final DisableKeyRotationRequest disableKeyRotationRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(DISABLE_KEY_ROTATION, () -> proxyClient.injectCredentialsAndInvokeV2(
+    public DisableKeyRotationResponse disableKeyRotation(
+        final DisableKeyRotationRequest disableKeyRotationRequest,
+        final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(DISABLE_KEY_ROTATION,
+            () -> proxyClient.injectCredentialsAndInvokeV2(
                 disableKeyRotationRequest, proxyClient.client()::disableKeyRotation));
     }
 
-    public EnableKeyRotationResponse enableKeyRotation(final EnableKeyRotationRequest enableKeyRotationRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(ENABLE_KEY_ROTATION, () -> proxyClient.injectCredentialsAndInvokeV2(
+    public EnableKeyRotationResponse enableKeyRotation(
+        final EnableKeyRotationRequest enableKeyRotationRequest,
+        final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(ENABLE_KEY_ROTATION,
+            () -> proxyClient.injectCredentialsAndInvokeV2(
                 enableKeyRotationRequest, proxyClient.client()::enableKeyRotation));
     }
 
     public GetKeyPolicyResponse getKeyPolicy(final GetKeyPolicyRequest getKeyPolicyRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(GET_KEY_POLICY, () -> proxyClient.injectCredentialsAndInvokeV2(getKeyPolicyRequest,
+                                             final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(GET_KEY_POLICY,
+            () -> proxyClient.injectCredentialsAndInvokeV2(getKeyPolicyRequest,
                 proxyClient.client()::getKeyPolicy));
     }
 
-    public GetKeyRotationStatusResponse getKeyRotationStatus(final GetKeyRotationStatusRequest getKeyRotationStatusRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(GET_KEY_ROTATION_STATUS, () -> proxyClient.injectCredentialsAndInvokeV2(
+    public GetKeyRotationStatusResponse getKeyRotationStatus(
+        final GetKeyRotationStatusRequest getKeyRotationStatusRequest,
+        final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(GET_KEY_ROTATION_STATUS,
+            () -> proxyClient.injectCredentialsAndInvokeV2(
                 getKeyRotationStatusRequest, proxyClient.client()::getKeyRotationStatus));
     }
 
     public ListKeysResponse listKeys(final ListKeysRequest listKeysRequest,
-            final ProxyClient<KmsClient> proxyClient) {
+                                     final ProxyClient<KmsClient> proxyClient) {
         return wrapKmsExceptions(LIST_KEYS, () -> proxyClient.injectCredentialsAndInvokeV2(
-                listKeysRequest, proxyClient.client()::listKeys));
+            listKeysRequest, proxyClient.client()::listKeys));
     }
 
-    public ListResourceTagsResponse listResourceTags(final ListResourceTagsRequest listResourceTagsRequest,
-            final ProxyClient<KmsClient> proxyClient) {
+    public ListResourceTagsResponse listResourceTags(
+        final ListResourceTagsRequest listResourceTagsRequest,
+        final ProxyClient<KmsClient> proxyClient) {
         return wrapKmsExceptions(LIST_RESOURCE_TAGS, () -> proxyClient.injectCredentialsAndInvokeV2(
-                listResourceTagsRequest, proxyClient.client()::listResourceTags));
+            listResourceTagsRequest, proxyClient.client()::listResourceTags));
     }
 
     public PutKeyPolicyResponse putKeyPolicy(final PutKeyPolicyRequest putKeyPolicyRequest,
-            final ProxyClient<KmsClient> proxyClient) {
+                                             final ProxyClient<KmsClient> proxyClient) {
         return wrapKmsExceptions(PUT_KEY_POLICY, () -> proxyClient.injectCredentialsAndInvokeV2(
-                putKeyPolicyRequest, proxyClient.client()::putKeyPolicy));
+            putKeyPolicyRequest, proxyClient.client()::putKeyPolicy));
     }
 
-    public ScheduleKeyDeletionResponse scheduleKeyDeletion(final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(SCHEDULE_KEY_DELETION, () -> proxyClient.injectCredentialsAndInvokeV2(
+    public ScheduleKeyDeletionResponse scheduleKeyDeletion(
+        final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest,
+        final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(SCHEDULE_KEY_DELETION,
+            () -> proxyClient.injectCredentialsAndInvokeV2(
                 scheduleKeyDeletionRequest, proxyClient.client()::scheduleKeyDeletion));
     }
 
     public TagResourceResponse tagResource(final TagResourceRequest tagResourceRequest,
-            final ProxyClient<KmsClient> proxyClient) {
+                                           final ProxyClient<KmsClient> proxyClient) {
         return wrapKmsExceptions(TAG_RESOURCE, () -> proxyClient.injectCredentialsAndInvokeV2(
-                tagResourceRequest, proxyClient.client()::tagResource));
+            tagResourceRequest, proxyClient.client()::tagResource));
     }
 
     public UntagResourceResponse untagResource(final UntagResourceRequest untagResourceRequest,
-            final ProxyClient<KmsClient> proxyClient) {
+                                               final ProxyClient<KmsClient> proxyClient) {
         return wrapKmsExceptions(UNTAG_RESOURCE, () -> proxyClient.injectCredentialsAndInvokeV2(
-                untagResourceRequest, proxyClient.client()::untagResource));
+            untagResourceRequest, proxyClient.client()::untagResource));
     }
 
-    public UpdateKeyDescriptionResponse updateKeyDescription(final UpdateKeyDescriptionRequest updateKeyDescriptionRequest,
-            final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(UPDATE_KEY_DESCRIPTION, () -> proxyClient.injectCredentialsAndInvokeV2(
+    public UpdateKeyDescriptionResponse updateKeyDescription(
+        final UpdateKeyDescriptionRequest updateKeyDescriptionRequest,
+        final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(UPDATE_KEY_DESCRIPTION,
+            () -> proxyClient.injectCredentialsAndInvokeV2(
                 updateKeyDescriptionRequest, proxyClient.client()::updateKeyDescription));
     }
 
@@ -176,7 +189,7 @@ public class KeyHelper {
         } catch (final AlreadyExistsException e) {
             throw new CfnAlreadyExistsException(ResourceModel.TYPE_NAME, e.getMessage());
         } catch (final KmsInvalidStateException | InvalidArnException | MalformedPolicyDocumentException |
-                TagException | UnsupportedOperationException | DisabledException e) {
+            TagException | UnsupportedOperationException | DisabledException e) {
             throw new CfnInvalidRequestException(e);
         } catch (final LimitExceededException e) {
             throw new CfnServiceLimitExceededException(ResourceModel.TYPE_NAME, e.getMessage());

@@ -38,7 +38,7 @@ public class Translator {
 
     // Create handler
     static CreateKeyRequest createCustomerMasterKey(final ResourceModel resourceModel,
-        final Map<String, String> tags) {
+                                                    final Map<String, String> tags) {
         return CreateKeyRequest.builder()
             .description(resourceModel.getDescription())
             .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
@@ -69,7 +69,7 @@ public class Translator {
     }
 
     static ListResourceTagsRequest listResourceTagsRequest(final ResourceModel model,
-        final String marker) {
+                                                           final String marker) {
         return ListResourceTagsRequest.builder()
             .keyId(model.getKeyId())
             .marker(marker)
@@ -115,7 +115,7 @@ public class Translator {
     }
 
     static UntagResourceRequest untagResourceRequest(final String keyId,
-        final Set<Tag> tags) {
+                                                     final Set<Tag> tags) {
         return UntagResourceRequest.builder()
             .keyId(keyId)
             .tagKeys(tags.stream()
@@ -125,7 +125,7 @@ public class Translator {
     }
 
     static TagResourceRequest tagResourceRequest(final String keyId,
-        final Collection<Tag> tags) {
+                                                 final Collection<Tag> tags) {
         return TagResourceRequest.builder()
             .keyId(keyId)
             .tags(tags).build();

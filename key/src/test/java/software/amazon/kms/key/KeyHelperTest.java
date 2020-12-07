@@ -1,5 +1,17 @@
 package software.amazon.kms.key;
 
+import static junit.framework.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static software.amazon.kms.key.AbstractTestBase.MOCK_PROXY;
+import static software.amazon.kms.key.KeyHelper.ACCESS_DENIED_ERROR_CODE;
+import static software.amazon.kms.key.KeyHelper.THROTTLING_ERROR_CODE;
+
+
+import com.amazonaws.AmazonServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -7,9 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.amazonaws.AmazonServiceException;
-
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.http.SdkHttpResponse;
@@ -33,7 +42,6 @@ import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
-import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
 import software.amazon.awssdk.services.kms.model.KmsException;
@@ -70,16 +78,6 @@ import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
-import static junit.framework.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static software.amazon.kms.key.AbstractTestBase.MOCK_PROXY;
-import static software.amazon.kms.key.KeyHelper.ACCESS_DENIED_ERROR_CODE;
-import static software.amazon.kms.key.KeyHelper.THROTTLING_ERROR_CODE;
-
 @ExtendWith(MockitoExtension.class)
 public class KeyHelperTest {
 
@@ -103,7 +101,8 @@ public class KeyHelperTest {
         final CreateKeyRequest createKeyRequest = CreateKeyRequest.builder().build();
         final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().build();
 
-        doReturn(createKeyResponse).when(proxy).injectCredentialsAndInvokeV2(same(createKeyRequest), any());
+        doReturn(createKeyResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(createKeyRequest), any());
 
         assertEquals(createKeyResponse, keyHelper.createKey(createKeyRequest, proxyKmsClient));
     }
@@ -113,9 +112,11 @@ public class KeyHelperTest {
         final DescribeKeyRequest describeKeyRequest = DescribeKeyRequest.builder().build();
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().build();
 
-        doReturn(describeKeyResponse).when(proxy).injectCredentialsAndInvokeV2(same(describeKeyRequest), any());
+        doReturn(describeKeyResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(describeKeyRequest), any());
 
-        assertEquals(describeKeyResponse, keyHelper.describeKey(describeKeyRequest, proxyKmsClient));
+        assertEquals(describeKeyResponse,
+            keyHelper.describeKey(describeKeyRequest, proxyKmsClient));
     }
 
     @Test
@@ -123,7 +124,8 @@ public class KeyHelperTest {
         final DisableKeyRequest disableKeyRequest = DisableKeyRequest.builder().build();
         final DisableKeyResponse disableKeyResponse = DisableKeyResponse.builder().build();
 
-        doReturn(disableKeyResponse).when(proxy).injectCredentialsAndInvokeV2(same(disableKeyRequest), any());
+        doReturn(disableKeyResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(disableKeyRequest), any());
 
         assertEquals(disableKeyResponse, keyHelper.disableKey(disableKeyRequest, proxyKmsClient));
     }
@@ -133,29 +135,38 @@ public class KeyHelperTest {
         final EnableKeyRequest enableKeyRequest = EnableKeyRequest.builder().build();
         final EnableKeyResponse enableKeyResponse = EnableKeyResponse.builder().build();
 
-        doReturn(enableKeyResponse).when(proxy).injectCredentialsAndInvokeV2(same(enableKeyRequest), any());
+        doReturn(enableKeyResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(enableKeyRequest), any());
 
         assertEquals(enableKeyResponse, keyHelper.enableKey(enableKeyRequest, proxyKmsClient));
     }
 
     @Test
     public void testDisableKeyRotation() {
-        final DisableKeyRotationRequest disableKeyRotationRequest = DisableKeyRotationRequest.builder().build();
-        final DisableKeyRotationResponse disableKeyRotationResponse = DisableKeyRotationResponse.builder().build();
+        final DisableKeyRotationRequest disableKeyRotationRequest =
+            DisableKeyRotationRequest.builder().build();
+        final DisableKeyRotationResponse disableKeyRotationResponse =
+            DisableKeyRotationResponse.builder().build();
 
-        doReturn(disableKeyRotationResponse).when(proxy).injectCredentialsAndInvokeV2(same(disableKeyRotationRequest), any());
+        doReturn(disableKeyRotationResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(disableKeyRotationRequest), any());
 
-        assertEquals(disableKeyRotationResponse, keyHelper.disableKeyRotation(disableKeyRotationRequest, proxyKmsClient));
+        assertEquals(disableKeyRotationResponse,
+            keyHelper.disableKeyRotation(disableKeyRotationRequest, proxyKmsClient));
     }
 
     @Test
     public void testEnableKeyRotation() {
-        final EnableKeyRotationRequest enableKeyRotationRequest = EnableKeyRotationRequest.builder().build();
-        final EnableKeyRotationResponse enableKeyRotationResponse = EnableKeyRotationResponse.builder().build();
+        final EnableKeyRotationRequest enableKeyRotationRequest =
+            EnableKeyRotationRequest.builder().build();
+        final EnableKeyRotationResponse enableKeyRotationResponse =
+            EnableKeyRotationResponse.builder().build();
 
-        doReturn(enableKeyRotationResponse).when(proxy).injectCredentialsAndInvokeV2(same(enableKeyRotationRequest), any());
+        doReturn(enableKeyRotationResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(enableKeyRotationRequest), any());
 
-        assertEquals(enableKeyRotationResponse, keyHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient));
+        assertEquals(enableKeyRotationResponse,
+            keyHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient));
     }
 
     @Test
@@ -163,19 +174,25 @@ public class KeyHelperTest {
         final GetKeyPolicyRequest getKeyPolicyRequest = GetKeyPolicyRequest.builder().build();
         final GetKeyPolicyResponse getKeyPolicyResponse = GetKeyPolicyResponse.builder().build();
 
-        doReturn(getKeyPolicyResponse).when(proxy).injectCredentialsAndInvokeV2(same(getKeyPolicyRequest), any());
+        doReturn(getKeyPolicyResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(getKeyPolicyRequest), any());
 
-        assertEquals(getKeyPolicyResponse, keyHelper.getKeyPolicy(getKeyPolicyRequest, proxyKmsClient));
+        assertEquals(getKeyPolicyResponse,
+            keyHelper.getKeyPolicy(getKeyPolicyRequest, proxyKmsClient));
     }
 
     @Test
     public void testGetKeyRotationStatus() {
-        final GetKeyRotationStatusRequest getKeyRotationStatusRequest = GetKeyRotationStatusRequest.builder().build();
-        final GetKeyRotationStatusResponse getKeyRotationStatusResponse = GetKeyRotationStatusResponse.builder().build();
+        final GetKeyRotationStatusRequest getKeyRotationStatusRequest =
+            GetKeyRotationStatusRequest.builder().build();
+        final GetKeyRotationStatusResponse getKeyRotationStatusResponse =
+            GetKeyRotationStatusResponse.builder().build();
 
-        doReturn(getKeyRotationStatusResponse).when(proxy).injectCredentialsAndInvokeV2(same(getKeyRotationStatusRequest), any());
+        doReturn(getKeyRotationStatusResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(getKeyRotationStatusRequest), any());
 
-        assertEquals(getKeyRotationStatusResponse, keyHelper.getKeyRotationStatus(getKeyRotationStatusRequest, proxyKmsClient));
+        assertEquals(getKeyRotationStatusResponse,
+            keyHelper.getKeyRotationStatus(getKeyRotationStatusRequest, proxyKmsClient));
     }
 
     @Test
@@ -183,19 +200,24 @@ public class KeyHelperTest {
         final ListKeysRequest listKeysRequest = ListKeysRequest.builder().build();
         final ListKeysResponse listKeysResponse = ListKeysResponse.builder().build();
 
-        doReturn(listKeysResponse).when(proxy).injectCredentialsAndInvokeV2(same(listKeysRequest), any());
+        doReturn(listKeysResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(listKeysRequest), any());
 
         assertEquals(listKeysResponse, keyHelper.listKeys(listKeysRequest, proxyKmsClient));
     }
 
     @Test
     public void testListResourceTags() {
-        final ListResourceTagsRequest listResourceTagsRequest = ListResourceTagsRequest.builder().build();
-        final ListResourceTagsResponse listResourceTagsResponse = ListResourceTagsResponse.builder().build();
+        final ListResourceTagsRequest listResourceTagsRequest =
+            ListResourceTagsRequest.builder().build();
+        final ListResourceTagsResponse listResourceTagsResponse =
+            ListResourceTagsResponse.builder().build();
 
-        doReturn(listResourceTagsResponse).when(proxy).injectCredentialsAndInvokeV2(same(listResourceTagsRequest), any());
+        doReturn(listResourceTagsResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(listResourceTagsRequest), any());
 
-        assertEquals(listResourceTagsResponse, keyHelper.listResourceTags(listResourceTagsRequest, proxyKmsClient));
+        assertEquals(listResourceTagsResponse,
+            keyHelper.listResourceTags(listResourceTagsRequest, proxyKmsClient));
     }
 
     @Test
@@ -203,19 +225,25 @@ public class KeyHelperTest {
         final PutKeyPolicyRequest putKeyPolicyRequest = PutKeyPolicyRequest.builder().build();
         final PutKeyPolicyResponse putKeyPolicyResponse = PutKeyPolicyResponse.builder().build();
 
-        doReturn(putKeyPolicyResponse).when(proxy).injectCredentialsAndInvokeV2(same(putKeyPolicyRequest), any());
+        doReturn(putKeyPolicyResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(putKeyPolicyRequest), any());
 
-        assertEquals(putKeyPolicyResponse, keyHelper.putKeyPolicy(putKeyPolicyRequest, proxyKmsClient));
+        assertEquals(putKeyPolicyResponse,
+            keyHelper.putKeyPolicy(putKeyPolicyRequest, proxyKmsClient));
     }
 
     @Test
     public void testScheduleKeyDeletion() {
-        final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest = ScheduleKeyDeletionRequest.builder().build();
-        final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse = ScheduleKeyDeletionResponse.builder().build();
+        final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest =
+            ScheduleKeyDeletionRequest.builder().build();
+        final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse =
+            ScheduleKeyDeletionResponse.builder().build();
 
-        doReturn(scheduleKeyDeletionResponse).when(proxy).injectCredentialsAndInvokeV2(same(scheduleKeyDeletionRequest), any());
+        doReturn(scheduleKeyDeletionResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(scheduleKeyDeletionRequest), any());
 
-        assertEquals(scheduleKeyDeletionResponse, keyHelper.scheduleKeyDeletion(scheduleKeyDeletionRequest, proxyKmsClient));
+        assertEquals(scheduleKeyDeletionResponse,
+            keyHelper.scheduleKeyDeletion(scheduleKeyDeletionRequest, proxyKmsClient));
     }
 
     @Test
@@ -223,9 +251,11 @@ public class KeyHelperTest {
         final TagResourceRequest tagResourceRequest = TagResourceRequest.builder().build();
         final TagResourceResponse tagResourceResponse = TagResourceResponse.builder().build();
 
-        doReturn(tagResourceResponse).when(proxy).injectCredentialsAndInvokeV2(same(tagResourceRequest), any());
+        doReturn(tagResourceResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(tagResourceRequest), any());
 
-        assertEquals(tagResourceResponse, keyHelper.tagResource(tagResourceRequest, proxyKmsClient));
+        assertEquals(tagResourceResponse,
+            keyHelper.tagResource(tagResourceRequest, proxyKmsClient));
     }
 
     @Test
@@ -233,46 +263,56 @@ public class KeyHelperTest {
         final UntagResourceRequest untagResourceRequest = UntagResourceRequest.builder().build();
         final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
 
-        doReturn(untagResourceResponse).when(proxy).injectCredentialsAndInvokeV2(same(untagResourceRequest), any());
+        doReturn(untagResourceResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(untagResourceRequest), any());
 
-        assertEquals(untagResourceResponse, keyHelper.untagResource(untagResourceRequest, proxyKmsClient));
+        assertEquals(untagResourceResponse,
+            keyHelper.untagResource(untagResourceRequest, proxyKmsClient));
     }
 
     @Test
     public void testUpdateKeyDescription() {
-        final UpdateKeyDescriptionRequest updateKeyDescriptionRequest = UpdateKeyDescriptionRequest.builder().build();
-        final UpdateKeyDescriptionResponse updateKeyDescriptionResponse = UpdateKeyDescriptionResponse.builder().build();
+        final UpdateKeyDescriptionRequest updateKeyDescriptionRequest =
+            UpdateKeyDescriptionRequest.builder().build();
+        final UpdateKeyDescriptionResponse updateKeyDescriptionResponse =
+            UpdateKeyDescriptionResponse.builder().build();
 
-        doReturn(updateKeyDescriptionResponse).when(proxy).injectCredentialsAndInvokeV2(same(updateKeyDescriptionRequest), any());
+        doReturn(updateKeyDescriptionResponse).when(proxy)
+            .injectCredentialsAndInvokeV2(same(updateKeyDescriptionRequest), any());
 
-        assertEquals(updateKeyDescriptionResponse, keyHelper.updateKeyDescription(updateKeyDescriptionRequest, proxyKmsClient));
+        assertEquals(updateKeyDescriptionResponse,
+            keyHelper.updateKeyDescription(updateKeyDescriptionRequest, proxyKmsClient));
     }
 
     @Test
     public void testAlreadyExists() {
-        doThrow(AlreadyExistsException.class).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(AlreadyExistsException.class).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnAlreadyExistsException.class);
     }
 
     @Test
     public void testInternalFailure() {
-        doThrow(InvalidMarkerException.class).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(InvalidMarkerException.class).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnInternalFailureException.class);
     }
 
     @Test
     public void testLimitExceeded() {
-        doThrow(LimitExceededException.class).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(LimitExceededException.class).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnServiceLimitExceededException.class);
     }
 
     @ParameterizedTest
-    @ValueSource(classes = { KmsInvalidStateException.class, InvalidArnException.class,
-            MalformedPolicyDocumentException.class, TagException.class, UnsupportedOperationException.class,
-            DisabledException.class })
+    @ValueSource(classes = {KmsInvalidStateException.class, InvalidArnException.class,
+        MalformedPolicyDocumentException.class, TagException.class,
+        UnsupportedOperationException.class,
+        DisabledException.class})
     public void testInvalidRequest(final Class<? extends Throwable> kmsException) {
         doThrow(kmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
@@ -280,7 +320,7 @@ public class KeyHelperTest {
     }
 
     @ParameterizedTest
-    @ValueSource(classes = { KmsInternalException.class, DependencyTimeoutException.class })
+    @ValueSource(classes = {KmsInternalException.class, DependencyTimeoutException.class})
     public void testServiceInternalError(final Class<? extends Throwable> kmsException) {
         doThrow(kmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
@@ -306,13 +346,13 @@ public class KeyHelperTest {
     @Test
     public void testAccessDenied() {
         final AwsServiceException accessDeniedException = KmsException.builder().awsErrorDetails(
-                AwsErrorDetails.builder()
-                        .sdkHttpResponse(SdkHttpResponse.builder()
-                                .statusCode(400)
-                                .build())
-                        .errorCode(ACCESS_DENIED_ERROR_CODE)
-                        .build())
-                .build();
+            AwsErrorDetails.builder()
+                .sdkHttpResponse(SdkHttpResponse.builder()
+                    .statusCode(400)
+                    .build())
+                .errorCode(ACCESS_DENIED_ERROR_CODE)
+                .build())
+            .build();
         doThrow(accessDeniedException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnAccessDeniedException.class);
@@ -320,7 +360,8 @@ public class KeyHelperTest {
 
     @Test
     public void testGeneralKmsException() {
-        final AwsServiceException generalKmsException = KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
+        final AwsServiceException generalKmsException =
+            KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
                 .build()).build();
         doThrow(generalKmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
@@ -330,7 +371,8 @@ public class KeyHelperTest {
     @Test
     public void testGeneralAmazonServiceException() {
         final AmazonServiceException generalAmazonServiceException = new AmazonServiceException("");
-        doThrow(generalAmazonServiceException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doThrow(generalAmazonServiceException).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnGeneralServiceException.class);
     }
@@ -348,37 +390,52 @@ public class KeyHelperTest {
         final EnableKeyRequest enableKeyRequest = EnableKeyRequest.builder().build();
         assertThrows(cfnException, () -> keyHelper.enableKey(enableKeyRequest, proxyKmsClient));
 
-        final DisableKeyRotationRequest disableKeyRotationRequest = DisableKeyRotationRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.disableKeyRotation(disableKeyRotationRequest, proxyKmsClient));
+        final DisableKeyRotationRequest disableKeyRotationRequest =
+            DisableKeyRotationRequest.builder().build();
+        assertThrows(cfnException,
+            () -> keyHelper.disableKeyRotation(disableKeyRotationRequest, proxyKmsClient));
 
-        final EnableKeyRotationRequest enableKeyRotationRequest = EnableKeyRotationRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient));
+        final EnableKeyRotationRequest enableKeyRotationRequest =
+            EnableKeyRotationRequest.builder().build();
+        assertThrows(cfnException,
+            () -> keyHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient));
 
         final GetKeyPolicyRequest getKeyPolicyRequest = GetKeyPolicyRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.getKeyPolicy(getKeyPolicyRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> keyHelper.getKeyPolicy(getKeyPolicyRequest, proxyKmsClient));
 
-        final GetKeyRotationStatusRequest getKeyRotationStatusRequest = GetKeyRotationStatusRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.getKeyRotationStatus(getKeyRotationStatusRequest, proxyKmsClient));
+        final GetKeyRotationStatusRequest getKeyRotationStatusRequest =
+            GetKeyRotationStatusRequest.builder().build();
+        assertThrows(cfnException,
+            () -> keyHelper.getKeyRotationStatus(getKeyRotationStatusRequest, proxyKmsClient));
 
         final ListKeysRequest listKeysRequest = ListKeysRequest.builder().build();
         assertThrows(cfnException, () -> keyHelper.listKeys(listKeysRequest, proxyKmsClient));
 
-        final ListResourceTagsRequest listResourceTagsRequest = ListResourceTagsRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.listResourceTags(listResourceTagsRequest, proxyKmsClient));
+        final ListResourceTagsRequest listResourceTagsRequest =
+            ListResourceTagsRequest.builder().build();
+        assertThrows(cfnException,
+            () -> keyHelper.listResourceTags(listResourceTagsRequest, proxyKmsClient));
 
         final PutKeyPolicyRequest putKeyPolicyRequest = PutKeyPolicyRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.putKeyPolicy(putKeyPolicyRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> keyHelper.putKeyPolicy(putKeyPolicyRequest, proxyKmsClient));
 
-        final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest = ScheduleKeyDeletionRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.scheduleKeyDeletion(scheduleKeyDeletionRequest, proxyKmsClient));
+        final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest =
+            ScheduleKeyDeletionRequest.builder().build();
+        assertThrows(cfnException,
+            () -> keyHelper.scheduleKeyDeletion(scheduleKeyDeletionRequest, proxyKmsClient));
 
         final TagResourceRequest tagResourceRequest = TagResourceRequest.builder().build();
         assertThrows(cfnException, () -> keyHelper.tagResource(tagResourceRequest, proxyKmsClient));
 
         final UntagResourceRequest untagResourceRequest = UntagResourceRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.untagResource(untagResourceRequest, proxyKmsClient));
+        assertThrows(cfnException,
+            () -> keyHelper.untagResource(untagResourceRequest, proxyKmsClient));
 
-        final UpdateKeyDescriptionRequest updateKeyDescriptionRequest = UpdateKeyDescriptionRequest.builder().build();
-        assertThrows(cfnException, () -> keyHelper.updateKeyDescription(updateKeyDescriptionRequest, proxyKmsClient));
+        final UpdateKeyDescriptionRequest updateKeyDescriptionRequest =
+            UpdateKeyDescriptionRequest.builder().build();
+        assertThrows(cfnException,
+            () -> keyHelper.updateKeyDescription(updateKeyDescriptionRequest, proxyKmsClient));
     }
 }
