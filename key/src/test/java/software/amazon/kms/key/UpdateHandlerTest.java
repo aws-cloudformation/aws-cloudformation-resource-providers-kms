@@ -133,7 +133,7 @@ public class UpdateHandlerTest extends AbstractTestBase{
                 .keyPolicy("{old policy}")
                 .build();
 
-        accessDeniedException = new CfnAccessDeniedException((KmsException) KmsException.builder().awsErrorDetails(
+        accessDeniedException = new CfnAccessDeniedException(KmsException.builder().awsErrorDetails(
                 AwsErrorDetails.builder()
                         .sdkHttpResponse(SdkHttpResponse.builder()
                                 .statusCode(400)

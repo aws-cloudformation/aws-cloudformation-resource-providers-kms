@@ -1,6 +1,8 @@
 package software.amazon.kms.key;
 
 import java.time.Duration;
+import java.util.logging.Handler;
+
 import org.junit.jupiter.api.AfterEach;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
@@ -11,6 +13,7 @@ import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionResponse;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
@@ -92,5 +95,27 @@ public class DeleteHandlerTest extends AbstractTestBase{
 
         verify(keyHelper).scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
+    }
+
+    @Test
+    public void handleRequest_InvalidState() {
+        when(keyHelper.scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient)))
+                .thenThrow(new CfnInvalidRequestException(KmsInvalidStateException.builder().build()));
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(ResourceModel.builder().build())
+                .build();
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                new CallbackContext(), proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
+        assertThat(response.getCallbackContext()).isNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isEqualTo(HandlerErrorCode.NotFound);
+
+        verify(keyHelper).scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
     }
 }

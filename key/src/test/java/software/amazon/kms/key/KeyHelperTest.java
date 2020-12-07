@@ -10,6 +10,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amazonaws.AmazonServiceException;
 
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
@@ -33,6 +36,7 @@ import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
 import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
+import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.LimitExceededException;
@@ -54,6 +58,7 @@ import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
 import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
+import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnAlreadyExistsException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
@@ -72,6 +77,7 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static software.amazon.kms.key.AbstractTestBase.MOCK_PROXY;
+import static software.amazon.kms.key.KeyHelper.ACCESS_DENIED_ERROR_CODE;
 import static software.amazon.kms.key.KeyHelper.THROTTLING_ERROR_CODE;
 
 @ExtendWith(MockitoExtension.class)
@@ -298,9 +304,33 @@ public class KeyHelperTest {
     }
 
     @Test
-    public void testGeneralServiceException() {
-        final AmazonServiceException throttlingException = new AmazonServiceException("");
-        doThrow(throttlingException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+    public void testAccessDenied() {
+        final AwsServiceException accessDeniedException = KmsException.builder().awsErrorDetails(
+                AwsErrorDetails.builder()
+                        .sdkHttpResponse(SdkHttpResponse.builder()
+                                .statusCode(400)
+                                .build())
+                        .errorCode(ACCESS_DENIED_ERROR_CODE)
+                        .build())
+                .build();
+        doThrow(accessDeniedException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+
+        assertAllRequestsThrow(CfnAccessDeniedException.class);
+    }
+
+    @Test
+    public void testGeneralKmsException() {
+        final AwsServiceException generalKmsException = KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
+                .build()).build();
+        doThrow(generalKmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+
+        assertAllRequestsThrow(CfnGeneralServiceException.class);
+    }
+
+    @Test
+    public void testGeneralAmazonServiceException() {
+        final AmazonServiceException generalAmazonServiceException = new AmazonServiceException("");
+        doThrow(generalAmazonServiceException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnGeneralServiceException.class);
     }
