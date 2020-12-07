@@ -8,6 +8,10 @@ import software.amazon.awssdk.services.kms.model.UpdateAliasRequest;
 
 
 public class Translator {
+    private Translator() {
+        // Prevent instantiation
+    }
+
     static CreateAliasRequest createAliasRequest(final ResourceModel resourceModel) {
         return CreateAliasRequest.builder()
                 .aliasName(resourceModel.getAliasName())
@@ -15,16 +19,16 @@ public class Translator {
                 .build();
     }
 
-    static DeleteAliasRequest deleteAliasRequest(final String aliasName) {
+    static DeleteAliasRequest deleteAliasRequest(final ResourceModel resourceModel) {
         return DeleteAliasRequest.builder()
-                .aliasName(aliasName)
+                .aliasName(resourceModel.getAliasName())
                 .build();
     }
 
-    static ListAliasesRequest listAliasesRequest(final String keyId,
+    static ListAliasesRequest listAliasesRequest(final ResourceModel resourceModel,
                                                  final String nextToken) {
         return ListAliasesRequest.builder()
-                .keyId(keyId)
+                .keyId(resourceModel.getTargetKeyId())
                 .marker(nextToken).build();
     }
 

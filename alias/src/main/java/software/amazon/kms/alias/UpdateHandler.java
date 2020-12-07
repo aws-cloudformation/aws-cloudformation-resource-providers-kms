@@ -1,19 +1,21 @@
 package software.amazon.kms.alias;
 
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
-import software.amazon.awssdk.services.kms.model.NotFoundException;
-import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
-import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
-import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class UpdateHandler extends BaseHandlerStd {
+    public UpdateHandler() {
+        super();
+    }
+
+    public UpdateHandler(final AliasHelper aliasHelper) {
+        super(aliasHelper);
+    }
+
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
@@ -23,17 +25,9 @@ public class UpdateHandler extends BaseHandlerStd {
 
         final ResourceModel model = request.getDesiredResourceState();
 
-        try {
-            proxy.injectCredentialsAndInvokeV2(Translator.updateAliasRequest(model), proxyClient.client()::updateAlias);
-        } catch (KmsInternalException | KmsInvalidStateException e) {
-            throw new CfnInternalFailureException(e);
-        } catch (NotFoundException e) {
-            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, e.getMessage());
-        }
-
-        return ProgressEvent.<ResourceModel, CallbackContext>builder()
-                .resourceModel(model)
-                .status(OperationStatus.SUCCESS)
-                .build();
+        return proxy.initiate("kms::update-alias", proxyClient, model, callbackContext)
+                .translateToServiceRequest(Translator::updateAliasRequest)
+                .makeServiceCall(aliasHelper::updateAlias)
+                .done(createAliasResponse -> ProgressEvent.defaultSuccessHandler(model));
     }
 }

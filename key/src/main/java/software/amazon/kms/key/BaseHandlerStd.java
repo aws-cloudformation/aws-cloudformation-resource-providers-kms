@@ -1,18 +1,44 @@
 package software.amazon.kms.key;
 
+import javax.security.auth.callback.Callback;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import com.amazonaws.AmazonServiceException;
+
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
+import software.amazon.awssdk.services.kms.model.DisabledException;
+import software.amazon.awssdk.services.kms.model.InvalidArnException;
+import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsException;
+import software.amazon.awssdk.services.kms.model.KmsInternalException;
+import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
+import software.amazon.awssdk.services.kms.model.LimitExceededException;
+import software.amazon.awssdk.services.kms.model.MalformedPolicyDocumentException;
+import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.Tag;
+import software.amazon.awssdk.services.kms.model.TagException;
+import software.amazon.awssdk.services.kms.model.UnsupportedOperationException;
+import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
+import software.amazon.cloudformation.exceptions.CfnAlreadyExistsException;
+import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
+import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
+import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorException;
+import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
+import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.exceptions.ResourceNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
@@ -22,9 +48,17 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
-
     protected static final int CALLBACK_DELAY_SECONDS = 60;
-    private static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
+
+    final KeyHelper keyHelper;
+
+    public BaseHandlerStd() {
+        this.keyHelper = new KeyHelper();
+    }
+
+    public BaseHandlerStd(final KeyHelper keyHelper) {
+        this.keyHelper = keyHelper;
+    }
 
     @Override
     public final ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -50,11 +84,11 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
     // KMS::Key cannot be immediately deleted, so pending deletion is treated as not found
     protected void resourceStateCheck(final KeyMetadata keyMetadata) {
         if (keyMetadata.keyState() == KeyState.PENDING_DELETION) {
-            throw new ResourceNotFoundException(ResourceModel.TYPE_NAME, keyMetadata.keyId());
+            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, keyMetadata.keyId());
         }
     }
 
-    protected static ProgressEvent<ResourceModel, CallbackContext> updateKeyRotationStatus(
+    protected ProgressEvent<ResourceModel, CallbackContext> updateKeyRotationStatus(
         final AmazonWebServicesClientProxy proxy,
         final ProxyClient<KmsClient> proxyClient,
         final ResourceModel model,
@@ -63,21 +97,17 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         if (enabled) {
             return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
                 .translateToServiceRequest(Translator::enableKeyRotationRequest)
-                .makeServiceCall((enableKeyRotationRequest, proxyInvocation) -> proxyInvocation
-                    .injectCredentialsAndInvokeV2(enableKeyRotationRequest,
-                        proxyInvocation.client()::enableKeyRotation))
+                .makeServiceCall(keyHelper::enableKeyRotation)
                 .progress();
         }
 
         return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
             .translateToServiceRequest(Translator::disableKeyRotationRequest)
-            .makeServiceCall((disableKeyRotationRequest, proxyInvocation) -> proxyInvocation
-                .injectCredentialsAndInvokeV2(disableKeyRotationRequest,
-                    proxyInvocation.client()::disableKeyRotation))
+            .makeServiceCall(keyHelper::disableKeyRotation)
             .progress();
     }
 
-    protected static ProgressEvent<ResourceModel, CallbackContext> updateKeyStatus(
+    protected ProgressEvent<ResourceModel, CallbackContext> updateKeyStatus(
         final AmazonWebServicesClientProxy proxy,
         final ProxyClient<KmsClient> proxyClient,
         final ResourceModel model,
@@ -88,9 +118,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             callbackContext.setKeyEnabled(true);
             return proxy.initiate("kms::enable-key", proxyClient, model, callbackContext)
                 .translateToServiceRequest(Translator::enableKeyRequest)
-                .makeServiceCall((enableKeyRequest, proxyInvocation) -> proxyInvocation
-                    .injectCredentialsAndInvokeV2(enableKeyRequest,
-                        proxyInvocation.client()::enableKey))
+                .makeServiceCall(keyHelper::enableKey)
                 // Changing key status from disabled -> enabled might affect rotation update since
                 // it's only allowed on enabled keys. If enabled state hasn't been propagated then
                 // the rotation update might hit invalid state exception. Wait 1 min to make sure
@@ -100,13 +128,11 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
 
         return proxy.initiate("kms::disable-key", proxyClient, model, callbackContext)
             .translateToServiceRequest(Translator::disableKeyRequest)
-            .makeServiceCall((disableKeyRequest, proxyInvocation) -> proxyInvocation
-                .injectCredentialsAndInvokeV2(disableKeyRequest,
-                    proxyInvocation.client()::disableKey))
+            .makeServiceCall(keyHelper::disableKey)
             .progress();
     }
 
-    protected static ProgressEvent<ResourceModel, CallbackContext> retrieveResourceTags(
+    protected ProgressEvent<ResourceModel, CallbackContext> retrieveResourceTags(
         final AmazonWebServicesClientProxy proxy,
         final ProxyClient<KmsClient> proxyClient,
         final ProgressEvent<ResourceModel, CallbackContext> progressEvent,
@@ -115,33 +141,26 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         final CallbackContext callbackContext = progressEvent.getCallbackContext();
         ProgressEvent<ResourceModel, CallbackContext> progress = progressEvent;
         do { // pagination to make sure that all the tags are retrieved
-            progress = proxy
-                .initiate("kms::list-tag-key:" + callbackContext.getMarker(), proxyClient,
-                    progressEvent.getResourceModel(), callbackContext)
-                .translateToServiceRequest((model) -> Translator
-                    .listResourceTagsRequest(model, callbackContext.getMarker()))
-                .makeServiceCall((listResourceTagsRequest, proxyInvocation) -> proxyInvocation
-                    .injectCredentialsAndInvokeV2(listResourceTagsRequest,
-                        proxyInvocation.client()::listResourceTags))
-                .handleError((listResourceTagsRequest, exception, proxyInvocation, resourceModel,
-                    context) -> {
-                    if (softFailOnAccessDenied) {
-                        // for Read Handler -> soft fail for GetAtt
-                        return BaseHandlerStd.handleAccessDenied(listResourceTagsRequest,
-                            exception, proxyInvocation, resourceModel, context);
-                    }
-                    throw exception; // Hard fail for update
-                })
-                .done(
-                    (listResourceTagsRequest, listResourceTagsResponse, proxyInvocation,
-                        resourceModel, context) -> {
-                        final Set<Tag> existingTags =
-                            Optional.ofNullable(context.getExistingTags()).orElse(new HashSet<>());
-                        existingTags.addAll(new HashSet<>(listResourceTagsResponse.tags()));
-                        context.setExistingTags(existingTags);
-                        context.setMarker(listResourceTagsResponse.nextMarker());
-                        return ProgressEvent.progress(resourceModel, context);
-                    });
+            final Supplier<ProgressEvent<ResourceModel, CallbackContext>> progressEventSupplier = () -> proxy
+                    .initiate("kms::list-tag-key:" + callbackContext.getMarker(), proxyClient,
+                            progressEvent.getResourceModel(), callbackContext)
+                    .translateToServiceRequest((model) -> Translator
+                            .listResourceTagsRequest(model, callbackContext.getMarker()))
+                    .makeServiceCall(keyHelper::listResourceTags)
+                    .done(
+                            (listResourceTagsRequest, listResourceTagsResponse, proxyInvocation,
+                                    resourceModel, context) -> {
+                                final Set<Tag> existingTags =
+                                        Optional.ofNullable(context.getExistingTags()).orElse(new HashSet<>());
+                                existingTags.addAll(new HashSet<>(listResourceTagsResponse.tags()));
+                                context.setExistingTags(existingTags);
+                                context.setMarker(listResourceTagsResponse.nextMarker());
+                                return ProgressEvent.progress(resourceModel, context);
+                            });
+
+            // for Read Handler -> soft fail for GetAtt
+            progress = softFailOnAccessDenied ? softFailAccessDenied(progressEventSupplier, progress.getResourceModel(),
+                    progress.getCallbackContext()) : progressEventSupplier.get();
         } while (callbackContext.getMarker() != null);
         return progress;
     }
@@ -162,31 +181,26 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
 
     // lambda to filter out access denied exception (used for Read Handler only)
     protected static ProgressEvent<ResourceModel, CallbackContext> handleAccessDenied(
-        final AwsRequest awsRequest,
-        final Exception e,
-        final ProxyClient<KmsClient> proxyClient,
-        final ResourceModel model,
-        final CallbackContext context
+            final AwsRequest awsRequest,
+            final Exception e,
+            final ProxyClient<KmsClient> proxyClient,
+            final ResourceModel model,
+            final CallbackContext context
     ) {
-        if (e instanceof KmsException
-            && ((KmsException) e).awsErrorDetails().errorCode().equals(ACCESS_DENIED_ERROR_CODE)) {
+        if (e instanceof CfnAccessDeniedException) {
             return ProgressEvent.progress(model, context);
         }
         return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.GeneralServiceException);
     }
 
-    // By default not found exception has the same error code as invalid request, map it correctly
-    protected static ProgressEvent<ResourceModel, CallbackContext> handleNotFound(
-        final AwsRequest awsRequest,
-        final Exception e,
-        final ProxyClient<KmsClient> proxyClient,
-        final ResourceModel model,
-        final CallbackContext context
-    ) {
-        if (e instanceof software.amazon.awssdk.services.kms.model.NotFoundException) {
-            return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.NotFound);
+    protected ProgressEvent<ResourceModel, CallbackContext> softFailAccessDenied(final Supplier<ProgressEvent<
+            ResourceModel, CallbackContext>> eventSupplier, final ResourceModel model,
+            final CallbackContext callbackContext) {
+        try {
+            return eventSupplier.get();
+        } catch (final CfnAccessDeniedException e) {
+            return ProgressEvent.progress(model, callbackContext);
         }
-        return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.GeneralServiceException);
     }
 
     /**

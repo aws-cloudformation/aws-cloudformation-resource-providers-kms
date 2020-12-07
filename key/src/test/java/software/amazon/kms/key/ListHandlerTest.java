@@ -21,6 +21,7 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -38,6 +39,9 @@ public class ListHandlerTest  extends AbstractTestBase{
     @Mock
     KmsClient kms;
 
+    @Mock
+    private KeyHelper keyHelper;
+
     private ListHandler handler;
 
     private static final String KEY_ID = "samplearn";
@@ -45,8 +49,7 @@ public class ListHandlerTest  extends AbstractTestBase{
 
     @BeforeEach
     public void setup() {
-        handler = new ListHandler();
-        kms = mock(KmsClient.class);
+        handler = new ListHandler(keyHelper);
         proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
@@ -58,11 +61,10 @@ public class ListHandlerTest  extends AbstractTestBase{
 
     @Test
     public void handleRequest_SimpleSuccess() {
-
         final ListKeysResponse listKeysResponse = ListKeysResponse.builder()
                 .keys(Collections.singletonList(KeyListEntry.builder().keyId(KEY_ID).build()))
                 .nextMarker(NEXT_TOKEN).build();
-        when(proxyKmsClient.client().listKeys(any(ListKeysRequest.class))).thenReturn(listKeysResponse);
+        when(keyHelper.listKeys(any(ListKeysRequest.class), eq(proxyKmsClient))).thenReturn(listKeysResponse);
 
         final ResourceModel model = ResourceModel.builder().build();
 
@@ -86,6 +88,6 @@ public class ListHandlerTest  extends AbstractTestBase{
         assertThat(response.getErrorCode()).isNull();
         assertThat(response.getNextToken()).isEqualTo(NEXT_TOKEN);
 
-        verify(proxyKmsClient.client()).listKeys(any(ListKeysRequest.class));
+        verify(keyHelper).listKeys(any(ListKeysRequest.class), eq(proxyKmsClient));
     }
 }

@@ -12,6 +12,15 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class CreateHandler extends BaseHandlerStd {
+
+    public CreateHandler() {
+        super();
+    }
+
+    public CreateHandler(final KeyHelper keyHelper) {
+        super(keyHelper);
+    }
+
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
@@ -26,9 +35,7 @@ public class CreateHandler extends BaseHandlerStd {
                 .translateToServiceRequest((resourceModel) ->
                     Translator
                         .createCustomerMasterKey(resourceModel, request.getDesiredResourceTags()))
-                .makeServiceCall((createKeyRequest, proxyInvocation) ->
-                    proxyInvocation.injectCredentialsAndInvokeV2(createKeyRequest,
-                        proxyInvocation.client()::createKey))
+                .makeServiceCall(keyHelper::createKey)
                 .done(createKeyResponse -> {
                     if (!StringUtils.isNullOrEmpty(model.getKeyId())) {
                         return ProgressEvent.progress(model, callbackContext);

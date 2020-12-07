@@ -5,9 +5,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
+
 import org.apache.commons.collections.CollectionUtils;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
+import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
@@ -16,6 +19,15 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class ReadHandler extends BaseHandlerStd {
+
+    public ReadHandler() {
+        super();
+    }
+
+    public ReadHandler(final KeyHelper keyHelper) {
+        super(keyHelper);
+    }
+
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
@@ -28,10 +40,7 @@ public class ReadHandler extends BaseHandlerStd {
             .then(
                 progress -> proxy.initiate("kms::describe-key", proxyClient, model, callbackContext)
                     .translateToServiceRequest(Translator::describeKeyRequest)
-                    .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation
-                        .injectCredentialsAndInvokeV2(describeKeyRequest,
-                            proxyInvocation.client()::describeKey))
-                    .handleError(BaseHandlerStd::handleNotFound)
+                    .makeServiceCall(keyHelper::describeKey)
                     .done(describeKeyResponse -> {
                         final KeyMetadata keyMetadata = describeKeyResponse.keyMetadata();
 
@@ -46,35 +55,29 @@ public class ReadHandler extends BaseHandlerStd {
                         return ProgressEvent.progress(model, callbackContext);
                     })
             )
-            .then(progress -> proxy
-                .initiate("kms::get-key-policy", proxyClient, model, callbackContext)
-                .translateToServiceRequest((m) -> Translator.getKeyPolicyRequest(m.getKeyId()))
-                .makeServiceCall((getKeyPolicyRequest, proxyInvocation) -> proxyInvocation
-                    .injectCredentialsAndInvokeV2(getKeyPolicyRequest,
-                        proxyInvocation.client()::getKeyPolicy))
                 // Retrieving the key policy can potentially cause an access denied exception
-                .handleError(BaseHandlerStd::handleAccessDenied)
-                .done(getKeyPolicyResponse -> {
-                    model.setKeyPolicy(deserializeKeyPolicy(getKeyPolicyResponse.policy()));
-                    return ProgressEvent.progress(model, callbackContext);
-                })
+            .then(progress -> softFailAccessDenied(() -> proxy
+                    .initiate("kms::get-key-policy", proxyClient, model, callbackContext)
+                    .translateToServiceRequest((m) -> Translator.getKeyPolicyRequest(m.getKeyId()))
+                    .makeServiceCall(keyHelper::getKeyPolicy)
+                    .done(getKeyPolicyResponse -> {
+                        model.setKeyPolicy(deserializeKeyPolicy(getKeyPolicyResponse.policy()));
+                        return ProgressEvent.progress(model, callbackContext);
+                    }), model, callbackContext)
             )
-            .then(progress -> proxy
-                .initiate("kms::get-key-rotation-status", proxyClient, model, callbackContext)
-                .translateToServiceRequest(Translator::getKeyRotationStatusRequest)
-                .makeServiceCall((getKeyRotationStatusRequest, proxyInvocation) -> proxyInvocation
-                    .injectCredentialsAndInvokeV2(getKeyRotationStatusRequest,
-                        proxyInvocation.client()::getKeyRotationStatus))
                 // Retrieving the rotation status can potentially cause an access denied exception
-                .handleError(BaseHandlerStd::handleAccessDenied)
-                .done(getKeyRotationStatusResponse -> {
-                    model.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
-                    return ProgressEvent.progress(model, callbackContext);
-                })
+            .then(progress -> softFailAccessDenied(() -> proxy
+                    .initiate("kms::get-key-rotation-status", proxyClient, model, callbackContext)
+                    .translateToServiceRequest(Translator::getKeyRotationStatusRequest)
+                    .makeServiceCall(keyHelper::getKeyRotationStatus)
+                    .done(getKeyRotationStatusResponse -> {
+                        model.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
+                        return ProgressEvent.progress(model, callbackContext);
+                    }), model, callbackContext)
             )
             // Retrieving the tags can potentially cause an access denied exception
             .then(
-                progress -> BaseHandlerStd.retrieveResourceTags(proxy, proxyClient, progress, true))
+                progress -> retrieveResourceTags(proxy, proxyClient, progress, true))
             .then(progress -> {
                 if (!CollectionUtils.isEmpty(callbackContext.getExistingTags())) {
                     model.setTags(

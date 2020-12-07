@@ -32,6 +32,10 @@ public class Translator {
     private static final String DEFAULT_POLICY_NAME = "default";
     public static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private Translator() {
+        // Prevent instantiation
+    }
+
     // Create handler
     static CreateKeyRequest createCustomerMasterKey(final ResourceModel resourceModel,
         final Map<String, String> tags) {

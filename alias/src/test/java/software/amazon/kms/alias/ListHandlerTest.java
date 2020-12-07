@@ -1,6 +1,8 @@
 package software.amazon.kms.alias;
 
 import com.google.common.collect.Lists;
+
+import java.time.Duration;
 import java.util.function.Function;
 import org.junit.jupiter.api.AfterEach;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -38,16 +40,15 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 public class ListHandlerTest extends AbstractTestBase {
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
+    private KmsClient kms;
 
     @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
-    KmsClient kms;
+    private AliasHelper aliasHelper;
 
     private ListHandler handler;
     private ResourceModel model;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
     private ResourceHandlerRequest<ResourceModel> request;
 
     private final static String ALIAS_NAME = "alias/aliasName1";
@@ -55,7 +56,7 @@ public class ListHandlerTest extends AbstractTestBase {
 
     @BeforeEach
     public void setup() {
-        handler = new ListHandler();
+        handler = new ListHandler(aliasHelper);
         model = ResourceModel.builder()
             .aliasName(ALIAS_NAME)
             .targetKeyId(KEY_ID)
@@ -63,30 +64,21 @@ public class ListHandlerTest extends AbstractTestBase {
         request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(model)
             .build();
-        kms = mock(KmsClient.class);
-        proxy = mock(AmazonWebServicesClientProxy.class);
+        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
-    @AfterEach
-    public void post_execute() {
-        verifyNoMoreInteractions(proxy);
-        verifyNoMoreInteractions(proxyKmsClient.client());
-    }
-
     @Test
-    public void handleRequest_SimpleSuccess() {
+    public void handleRequest() {
         final ListAliasesResponse listAliasesResponse = ListAliasesResponse.builder()
             .aliases(Lists.newArrayList(AliasListEntry.builder().aliasName(ALIAS_NAME).targetKeyId(KEY_ID).build()))
             .build();
 
-        final Function<ListAliasesRequest, ListAliasesResponse> requestFunction = (r) -> listAliasesResponse;
-        doReturn(listAliasesResponse).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+        doReturn(listAliasesResponse).when(aliasHelper).listAliases(eq(Translator.listAliasesRequest(model, null)),
+                eq(proxyKmsClient));
 
         final ProgressEvent<ResourceModel, CallbackContext> response
             = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
-
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.listAliasesRequest(KEY_ID, null)), any());
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -96,35 +88,5 @@ public class ListHandlerTest extends AbstractTestBase {
         assertThat(response.getResourceModels()).containsExactly(model);
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
-    }
-
-    @Test
-    public void handleRequest_InvalidArnException() {
-        doThrow(InvalidArnException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnInvalidRequestException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
-    }
-
-    @Test
-    public void handleRequest_KmsInternal() {
-        doThrow(KmsInternalException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnInternalFailureException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
-    }
-
-    @Test
-    public void handleRequest_NotFound() {
-        doThrow(NotFoundException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnNotFoundException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
     }
 }

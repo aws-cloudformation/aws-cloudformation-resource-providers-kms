@@ -29,6 +29,7 @@ import software.amazon.kms.key.ResourceModel.ResourceModelBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -76,12 +77,14 @@ public class CreateHandlerTest extends AbstractTestBase{
     @Mock
     KmsClient kms;
 
+    @Mock
+    private KeyHelper keyHelper;
+
     private CreateHandler handler;
 
     @BeforeEach
     public void setup() {
-        handler = new CreateHandler();
-        kms = mock(KmsClient.class);
+        handler = new CreateHandler(keyHelper);
         proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
@@ -90,7 +93,7 @@ public class CreateHandlerTest extends AbstractTestBase{
     @Test
     public void handleRequest_PartiallyPropagate() {
         final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().keyMetadata(KeyMetadata.builder().build()).build();
-        when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
+        when(keyHelper.createKey(any(CreateKeyRequest.class), eq(proxyKmsClient))).thenReturn(createKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(KEY_MODEL)
@@ -115,14 +118,17 @@ public class CreateHandlerTest extends AbstractTestBase{
     // Key has been created and provisioned, waiting on final propagation
     @Test
     public void handleRequest_FullyPropagate() {
-        final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().keyMetadata(KeyMetadata.builder().build()).build();
-        when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
+        final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder()
+                .keyMetadata(KeyMetadata.builder().build())
+                .build();
+        when(keyHelper.createKey(any(CreateKeyRequest.class), eq(proxyKmsClient))).thenReturn(createKeyResponse);
 
         final EnableKeyRotationResponse enableKeyRotationResponse = EnableKeyRotationResponse.builder().build();
-        when(proxyKmsClient.client().enableKeyRotation(any(EnableKeyRotationRequest.class))).thenReturn(enableKeyRotationResponse);
+        when(keyHelper.enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenReturn(enableKeyRotationResponse);
 
         final DisableKeyResponse disableKeyResponse = DisableKeyResponse.builder().build();
-        when(proxyKmsClient.client().disableKey(any(DisableKeyRequest.class))).thenReturn(disableKeyResponse);
+        when(keyHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient))).thenReturn(disableKeyResponse);
 
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
@@ -141,8 +147,8 @@ public class CreateHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(proxyKmsClient.client()).enableKeyRotation(any(EnableKeyRotationRequest.class));
-        verify(proxyKmsClient.client()).disableKey(any(DisableKeyRequest.class));
+        verify(keyHelper).enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
+        verify(keyHelper).disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient));
         verifyCreateKey();
         verifyServiceNameCalledAtLeastOnce();
     }
@@ -151,7 +157,7 @@ public class CreateHandlerTest extends AbstractTestBase{
     @Test
     public void handleRequest_SimpleSuccess() {
         final CreateKeyResponse createKeyResponse = CreateKeyResponse.builder().keyMetadata(KeyMetadata.builder().build()).build();
-        when(proxyKmsClient.client().createKey(any(CreateKeyRequest.class))).thenReturn(createKeyResponse);
+        when(keyHelper.createKey(any(CreateKeyRequest.class), eq(proxyKmsClient))).thenReturn(createKeyResponse);
 
         final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(KEY_MODEL_CREATED)
@@ -188,7 +194,7 @@ public class CreateHandlerTest extends AbstractTestBase{
 
     private void verifyCreateKey() {
         final ArgumentCaptor<CreateKeyRequest> requestCaptor = ArgumentCaptor.forClass(CreateKeyRequest.class);
-        verify(proxyKmsClient.client()).createKey(requestCaptor.capture());
+        verify(keyHelper).createKey(requestCaptor.capture(), eq(proxyKmsClient));
         assertThat(EXPECTED_CREATE_KEY_REQUEST.equalsBySdkFields(requestCaptor.getValue())).isTrue();
     }
 

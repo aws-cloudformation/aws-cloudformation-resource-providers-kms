@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.kms.model.ListAliasesResponse;
 import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,16 +37,15 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 public class ReadHandlerTest extends AbstractTestBase {
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
+    private KmsClient kms;
 
     @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
-    KmsClient kms;
+    private AliasHelper aliasHelper;
 
     private ReadHandler handler;
     private ResourceModel model;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
     private ResourceHandlerRequest<ResourceModel> request;
 
     private final static String ALIAS_NAME_BASE = "alias/aliasName1";
@@ -55,7 +56,7 @@ public class ReadHandlerTest extends AbstractTestBase {
 
     @BeforeEach
     public void setup() {
-        handler = new ReadHandler();
+        handler = new ReadHandler(aliasHelper);
         model = ResourceModel.builder()
             .aliasName(ALIAS_NAME_BASE)
             .targetKeyId(KEY_ID)
@@ -63,28 +64,21 @@ public class ReadHandlerTest extends AbstractTestBase {
         request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(model)
             .build();
-        kms = mock(KmsClient.class);
-        proxy = mock(AmazonWebServicesClientProxy.class);
+        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
-    @AfterEach
-    public void post_execute() {
-        verifyNoMoreInteractions(proxy);
-        verifyNoMoreInteractions(proxyKmsClient.client());
-    }
-
     @Test
-    public void handleRequest_SimpleSuccess() {
+    public void handleRequest() {
         List<AliasListEntry> aliases = Lists.newArrayList(AliasListEntry.builder()
-            .aliasName(ALIAS_NAME_BASE)
-            .targetKeyId(KEY_ID).build());
+                .aliasName(ALIAS_NAME_BASE)
+                .targetKeyId(KEY_ID).build());
 
         final ListAliasesResponse listAliasesResponse = ListAliasesResponse.builder().aliases(aliases).build();
-        doReturn(listAliasesResponse).when(proxy).injectCredentialsAndInvokeV2(any(ListAliasesRequest.class), any());
+        doReturn(listAliasesResponse).when(aliasHelper).listAliases(any(ListAliasesRequest.class), eq(proxyKmsClient));
 
         final ProgressEvent<ResourceModel, CallbackContext> response
-            = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+                = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -97,40 +91,35 @@ public class ReadHandlerTest extends AbstractTestBase {
     }
 
     @Test
-    public void handleRequest_SimpleFail() {
-        List<AliasListEntry> aliasesPage1 = Lists.newArrayList(AliasListEntry.builder()
+    public void handleRequestNotFound() {
+        final List<AliasListEntry> aliasesPage1 = Lists.newArrayList(AliasListEntry.builder()
             .aliasName(ALIAS_NAME_REQ1)
             .targetKeyId(KEY_ID).build());
-        List<AliasListEntry> aliasesPage2 = Lists.newArrayList(AliasListEntry.builder()
+        final List<AliasListEntry> aliasesPage2 = Lists.newArrayList(AliasListEntry.builder()
             .aliasName(ALIAS_NAME_REQ2)
             .targetKeyId(KEY_ID).build());
 
-        final ListAliasesResponse listAliasesResponsePage1 = ListAliasesResponse.builder().aliases(aliasesPage1).nextMarker(NEXT_MARKER).build();
-        final ListAliasesResponse listAliasesResponsePage2 = ListAliasesResponse.builder().aliases(aliasesPage2).build();
+        final ListAliasesResponse listAliasesResponsePage1 = ListAliasesResponse.builder()
+                .aliases(aliasesPage1)
+                .nextMarker(NEXT_MARKER)
+                .build();
+        final ListAliasesResponse listAliasesResponsePage2 = ListAliasesResponse.builder()
+                .aliases(aliasesPage2)
+                .build();
         doReturn(listAliasesResponsePage1,
-            listAliasesResponsePage2).when(proxy).injectCredentialsAndInvokeV2(any(ListAliasesRequest.class), any());
+            listAliasesResponsePage2).when(aliasHelper).listAliases(any(ListAliasesRequest.class), eq(proxyKmsClient));
 
         final ProgressEvent<ResourceModel, CallbackContext> response
             = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.listAliasesRequest(KEY_ID, null)), any());
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.listAliasesRequest(KEY_ID, NEXT_MARKER)), any());
+        verify(aliasHelper).listAliases(eq(Translator.listAliasesRequest(model, null)), eq(proxyKmsClient));
+        verify(aliasHelper).listAliases(eq(Translator.listAliasesRequest(model, NEXT_MARKER)), eq(proxyKmsClient));
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
         assertThat(response.getCallbackContext()).isNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
         assertThat(response.getMessage()).isNull();
-        assertThat(response.getErrorCode()).isNull();
-    }
-
-    @Test
-    public void handleRequest_NotFound() {
-        doThrow(NotFoundException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnNotFoundException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
+        assertThat(response.getErrorCode()).isEqualTo(HandlerErrorCode.NotFound);
     }
 }

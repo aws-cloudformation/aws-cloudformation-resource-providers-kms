@@ -1,5 +1,7 @@
 package software.amazon.kms.alias;
 
+import java.time.Duration;
+
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
@@ -29,22 +31,20 @@ import static org.mockito.Mockito.verify;
 public class UpdateHandlerTest extends AbstractTestBase {
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
+    private KmsClient kms;
 
     @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
-    KmsClient kms;
+    private AliasHelper aliasHelper;
 
     private UpdateHandler handler;
     private ResourceModel model;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
     private ResourceHandlerRequest<ResourceModel> request;
-
 
     @BeforeEach
     public void setup() {
-        handler = new UpdateHandler();
+        handler = new UpdateHandler(aliasHelper);
         model = ResourceModel.builder()
             .aliasName("alias/aliasName1")
             .targetKeyId("keyId")
@@ -52,17 +52,16 @@ public class UpdateHandlerTest extends AbstractTestBase {
         request = ResourceHandlerRequest.<ResourceModel>builder()
             .desiredResourceState(model)
             .build();
-        kms = mock(KmsClient.class);
-        proxy = mock(AmazonWebServicesClientProxy.class);
+        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
     @Test
-    public void handleRequest_SimpleSuccess() {
+    public void handleRequest() {
         final ProgressEvent<ResourceModel, CallbackContext> response
             = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 
-        verify(proxy).injectCredentialsAndInvokeV2(eq(Translator.updateAliasRequest(model)), any());
+        verify(aliasHelper).updateAlias(eq(Translator.updateAliasRequest(model)), eq(proxyKmsClient));
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
@@ -72,35 +71,5 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
-    }
-
-    @Test
-    public void handleRequest_KmsInternal() {
-        doThrow(KmsInternalException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnInternalFailureException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
-    }
-
-    @Test
-    public void handleRequest_KmsInvalid() {
-        doThrow(KmsInvalidStateException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnInternalFailureException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
-    }
-
-    @Test
-    public void handleRequest_NotFound() {
-        doThrow(NotFoundException.class)
-            .when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
-
-        assertThrows(CfnNotFoundException.class,
-            () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger));
     }
 }
