@@ -66,6 +66,7 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 public class KeyHelper {
     static final String THROTTLING_ERROR_CODE = "ThrottlingException";
     static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
+    static final String VALIDATION_ERROR_CODE = "ValidationException";
 
     private static final String CREATE_KEY = "CreateKey";
     private static final String DESCRIBE_KEY = "DescribeKey";
@@ -209,6 +210,8 @@ public class KeyHelper {
         } catch (final KmsException e) {
             if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnAccessDeniedException(operation, e);
+            } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
+                throw new CfnInvalidRequestException(e);
             }
 
             throw new CfnGeneralServiceException(operation, e);

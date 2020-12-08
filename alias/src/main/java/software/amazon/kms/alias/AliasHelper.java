@@ -41,6 +41,7 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 public class AliasHelper {
     static final String THROTTLING_ERROR_CODE = "ThrottlingException";
     static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
+    static final String VALIDATION_ERROR_CODE = "ValidationException";
 
     private static final String CREATE_ALIAS = "CreateAlias";
     private static final String DELETE_ALIAS = "DeleteAlias";
@@ -94,6 +95,8 @@ public class AliasHelper {
         } catch (final KmsException e) {
             if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnAccessDeniedException(operation, e);
+            } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
+                throw new CfnInvalidRequestException(e);
             }
 
             throw new CfnGeneralServiceException(operation, e);

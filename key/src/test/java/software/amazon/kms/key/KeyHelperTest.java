@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import static software.amazon.kms.key.AbstractTestBase.MOCK_PROXY;
 import static software.amazon.kms.key.KeyHelper.ACCESS_DENIED_ERROR_CODE;
 import static software.amazon.kms.key.KeyHelper.THROTTLING_ERROR_CODE;
+import static software.amazon.kms.key.KeyHelper.VALIDATION_ERROR_CODE;
 
 
 import com.amazonaws.AmazonServiceException;
@@ -356,6 +357,21 @@ public class KeyHelperTest {
         doThrow(accessDeniedException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnAccessDeniedException.class);
+    }
+
+    @Test
+    public void testValidationException() {
+        final AwsServiceException validationException = KmsException.builder().awsErrorDetails(
+            AwsErrorDetails.builder()
+                .sdkHttpResponse(SdkHttpResponse.builder()
+                    .statusCode(400)
+                    .build())
+                .errorCode(VALIDATION_ERROR_CODE)
+                .build())
+            .build();
+        doThrow(validationException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+
+        assertAllRequestsThrow(CfnInvalidRequestException.class);
     }
 
     @Test
