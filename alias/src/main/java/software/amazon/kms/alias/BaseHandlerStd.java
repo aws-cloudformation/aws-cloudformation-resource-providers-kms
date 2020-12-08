@@ -15,6 +15,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
   }
 
   public BaseHandlerStd(final AliasHelper aliasHelper) {
+    // Allows for mocking alias helper in our unit tests
     this.aliasHelper = aliasHelper;
   }
 

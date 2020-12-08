@@ -30,18 +30,14 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 public class ListHandlerTest extends AbstractTestBase {
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
-
-    @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
     KmsClient kms;
 
     @Mock
     private KeyHelper keyHelper;
 
     private ListHandler handler;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
 
     private static final String KEY_ID = "samplearn";
     private static final String NEXT_TOKEN = "4b90a7e4-b790-456b";
@@ -57,6 +53,7 @@ public class ListHandlerTest extends AbstractTestBase {
     @AfterEach
     public void post_execute() {
         verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(keyHelper);
     }
 
     @Test

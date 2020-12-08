@@ -1,12 +1,16 @@
 package software.amazon.kms.alias;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 
 import com.google.common.collect.Lists;
 import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,8 +57,15 @@ public class ListHandlerTest extends AbstractTestBase {
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
+    @AfterEach
+    public void post_execute() {
+        verify(kms, atLeastOnce()).serviceName();
+        verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(aliasHelper);
+    }
+
     @Test
-    public void handleRequest() {
+    public void handleRequest_SimpleSuccess() {
         final ListAliasesResponse listAliasesResponse = ListAliasesResponse.builder()
             .aliases(Lists.newArrayList(AliasListEntry.builder().aliasName(ALIAS_NAME).targetKeyId(KEY_ID).build()))
             .build();

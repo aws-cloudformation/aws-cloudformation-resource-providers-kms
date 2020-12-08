@@ -67,18 +67,14 @@ public class CreateHandlerTest extends AbstractTestBase {
         .build();
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
-
-    @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
     KmsClient kms;
 
     @Mock
     private KeyHelper keyHelper;
 
     private CreateHandler handler;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
 
     @BeforeEach
     public void setup() {
@@ -218,5 +214,6 @@ public class CreateHandlerTest extends AbstractTestBase {
     private void verifyServiceNameCalledAtLeastOnce() {
         verify(kms, atLeastOnce()).serviceName();
         verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(keyHelper);
     }
 }

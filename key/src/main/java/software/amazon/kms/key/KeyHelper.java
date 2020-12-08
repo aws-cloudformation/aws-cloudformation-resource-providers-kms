@@ -57,6 +57,12 @@ import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededExceptio
 import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
+/**
+ * Helper class for calling KMS key APIs. The primary function of this class
+ * is to wrap KMS service exceptions with the appropriate CloudFormation exception.
+ * This is necessary so that CloudFormation can determine whether or not it should
+ * retry a failed request.
+ */
 public class KeyHelper {
     static final String THROTTLING_ERROR_CODE = "ThrottlingException";
     static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
@@ -194,6 +200,7 @@ public class KeyHelper {
         } catch (final LimitExceededException e) {
             throw new CfnServiceLimitExceededException(ResourceModel.TYPE_NAME, e.getMessage());
         } catch (final InvalidMarkerException e) {
+            // We should never make a call with an invalid marker, if we did, there is an issue
             throw new CfnInternalFailureException(e);
         } catch (final KmsInternalException | DependencyTimeoutException e) {
             throw new CfnServiceInternalErrorException(e);

@@ -72,18 +72,14 @@ public class ReadHandlerTest extends AbstractTestBase {
         .build();
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
-
-    @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
     KmsClient kms;
 
     @Mock
     private KeyHelper keyHelper;
 
     private ReadHandler handler;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
 
     @BeforeEach
     public void setup() {
@@ -97,6 +93,7 @@ public class ReadHandlerTest extends AbstractTestBase {
     public void post_execute() {
         verify(kms, atLeastOnce()).serviceName();
         verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(keyHelper);
     }
 
     @Test

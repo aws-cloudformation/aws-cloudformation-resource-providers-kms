@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static software.amazon.kms.alias.AliasHelper.ACCESS_DENIED_ERROR_CODE;
 import static software.amazon.kms.alias.AliasHelper.THROTTLING_ERROR_CODE;
 
 
@@ -17,6 +18,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CreateAliasRequest;
@@ -27,6 +31,7 @@ import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
 import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
+import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.LimitExceededException;
@@ -35,6 +40,7 @@ import software.amazon.awssdk.services.kms.model.ListAliasesResponse;
 import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.UpdateAliasRequest;
 import software.amazon.awssdk.services.kms.model.UpdateAliasResponse;
+import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnAlreadyExistsException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
@@ -170,9 +176,35 @@ public class AliasHelperTest extends AbstractTestBase {
     }
 
     @Test
-    public void testGeneralServiceException() {
-        final AmazonServiceException throttlingException = new AmazonServiceException("");
-        doThrow(throttlingException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+    public void testAccessDenied() {
+        final AwsServiceException accessDeniedException = KmsException.builder().awsErrorDetails(
+            AwsErrorDetails.builder()
+                .sdkHttpResponse(SdkHttpResponse.builder()
+                    .statusCode(400)
+                    .build())
+                .errorCode(ACCESS_DENIED_ERROR_CODE)
+                .build())
+            .build();
+        doThrow(accessDeniedException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+
+        assertAllRequestsThrow(CfnAccessDeniedException.class);
+    }
+
+    @Test
+    public void testGeneralKmsException() {
+        final AwsServiceException generalKmsException =
+            KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
+                .build()).build();
+        doThrow(generalKmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
+
+        assertAllRequestsThrow(CfnGeneralServiceException.class);
+    }
+
+    @Test
+    public void testGeneralAmazonServiceException() {
+        final AmazonServiceException generalAmazonServiceException = new AmazonServiceException("");
+        doThrow(generalAmazonServiceException).when(proxy)
+            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnGeneralServiceException.class);
     }

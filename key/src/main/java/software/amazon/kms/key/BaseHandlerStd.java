@@ -5,7 +5,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
-import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
@@ -16,7 +15,6 @@ import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
-import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -32,6 +30,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
     }
 
     public BaseHandlerStd(final KeyHelper keyHelper) {
+        // Allows for mocking key helper in our unit tests
         this.keyHelper = keyHelper;
     }
 
@@ -157,20 +156,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             progressEvent.getResourceModel());
     }
 
-    // lambda to filter out access denied exception (used for Read Handler only)
-    protected static ProgressEvent<ResourceModel, CallbackContext> handleAccessDenied(
-        final AwsRequest awsRequest,
-        final Exception e,
-        final ProxyClient<KmsClient> proxyClient,
-        final ResourceModel model,
-        final CallbackContext context
-    ) {
-        if (e instanceof CfnAccessDeniedException) {
-            return ProgressEvent.progress(model, context);
-        }
-        return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.GeneralServiceException);
-    }
-
+    // Filters out access denied exception (used for Read Handler only)
     protected ProgressEvent<ResourceModel, CallbackContext> softFailAccessDenied(
         final Supplier<ProgressEvent<
             ResourceModel, CallbackContext>> eventSupplier, final ResourceModel model,

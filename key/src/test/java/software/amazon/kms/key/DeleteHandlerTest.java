@@ -33,13 +33,7 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 @ExtendWith(MockitoExtension.class)
-public class DeleteHandlerTest extends AbstractTestBase{
-
-    @Mock
-    private AmazonWebServicesClientProxy proxy;
-
-    @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
+public class DeleteHandlerTest extends AbstractTestBase {
 
     @Mock
     KmsClient kms;
@@ -48,11 +42,14 @@ public class DeleteHandlerTest extends AbstractTestBase{
     private KeyHelper keyHelper;
 
     private DeleteHandler handler;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
 
     @BeforeEach
     public void setup() {
         handler = new DeleteHandler(keyHelper);
-        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
+        proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS,
+            () -> Duration.ofSeconds(600).toMillis());
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
@@ -60,24 +57,30 @@ public class DeleteHandlerTest extends AbstractTestBase{
     public void post_execute() {
         verify(kms, atLeastOnce()).serviceName();
         verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(keyHelper);
     }
 
     @Test
     public void handleRequest_SimpleSuccess() {
-        final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse = ScheduleKeyDeletionResponse.builder().build();
-        when(keyHelper.scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient)))
-                .thenReturn(scheduleKeyDeletionResponse);
+        final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse =
+            ScheduleKeyDeletionResponse.builder().build();
+        when(keyHelper
+            .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient)))
+            .thenReturn(scheduleKeyDeletionResponse);
 
         final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder()
-                .keyMetadata(KeyMetadata.builder().keyState(KeyState.PENDING_DELETION).build())
-                .build();
-        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient))).thenReturn(describeKeyResponse);
-
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(ResourceModel.builder().build())
+            .keyMetadata(KeyMetadata.builder().keyState(KeyState.PENDING_DELETION).build())
             .build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+            .thenReturn(describeKeyResponse);
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(ResourceModel.builder().build())
+                .build();
+
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request,
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
@@ -88,29 +91,36 @@ public class DeleteHandlerTest extends AbstractTestBase{
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
 
-        verify(keyHelper).scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
+        verify(keyHelper)
+            .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
     }
 
+    // Key has been scheduled for deletion out of band -> considered deleted
     @Test
     public void handleRequest_InvalidState() {
-        when(keyHelper.scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient)))
-                .thenThrow(new CfnInvalidRequestException(KmsInvalidStateException.builder().build()));
+        when(keyHelper
+            .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient)))
+            .thenThrow(new CfnInvalidRequestException(KmsInvalidStateException.builder().build()));
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
                 .desiredResourceState(ResourceModel.builder().build())
                 .build();
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+        final ProgressEvent<ResourceModel, CallbackContext> response =
+            handler.handleRequest(proxy, request,
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
         assertThat(response.getCallbackContext()).isNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isEqualTo(HandlerErrorCode.NotFound);
 
-        verify(keyHelper).scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
+        verify(keyHelper)
+            .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
     }
 }

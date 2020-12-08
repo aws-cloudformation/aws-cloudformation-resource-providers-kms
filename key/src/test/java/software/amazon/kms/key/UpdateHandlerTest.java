@@ -60,18 +60,14 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 public class UpdateHandlerTest extends AbstractTestBase {
 
     @Mock
-    private AmazonWebServicesClientProxy proxy;
-
-    @Mock
-    private ProxyClient<KmsClient> proxyKmsClient;
-
-    @Mock
     KmsClient kms;
 
     @Mock
     private KeyHelper keyHelper;
 
     private UpdateHandler handler;
+    private AmazonWebServicesClientProxy proxy;
+    private ProxyClient<KmsClient> proxyKmsClient;
 
     private ResourceModel DESIRED_STATE_SCENARIO_1;
     private ResourceModel PREVIOUS_STATE_SCENARIO_1;
@@ -144,6 +140,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
     public void post_execute() {
         verify(kms, atLeastOnce()).serviceName();
         verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(keyHelper);
     }
 
     // SCENARIO 1: Enables Key, Disables Rotation

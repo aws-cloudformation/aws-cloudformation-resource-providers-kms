@@ -26,8 +26,14 @@ public class DeleteHandler extends BaseHandlerStd {
         final ResourceModel model = request.getDesiredResourceState();
 
         return proxy.initiate("kms::delete-alias", proxyClient, model, callbackContext)
-                .translateToServiceRequest(Translator::deleteAliasRequest)
-                .makeServiceCall(aliasHelper::deleteAlias)
-                .done(deleteAliasResponse -> ProgressEvent.defaultSuccessHandler(model));
+            .translateToServiceRequest(Translator::deleteAliasRequest)
+            .makeServiceCall(aliasHelper::deleteAlias)
+            .done(deleteAliasResponse -> {
+                logger.log(String
+                    .format("%s [%s] has been successfully deleted", ResourceModel.TYPE_NAME,
+                        model.getAliasName()));
+
+                return ProgressEvent.defaultSuccessHandler(model);
+            });
     }
 }

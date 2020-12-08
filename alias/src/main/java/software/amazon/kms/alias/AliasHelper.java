@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
 import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
 import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
+import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.LimitExceededException;
@@ -20,6 +21,7 @@ import software.amazon.awssdk.services.kms.model.ListAliasesResponse;
 import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.UpdateAliasRequest;
 import software.amazon.awssdk.services.kms.model.UpdateAliasResponse;
+import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnAlreadyExistsException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
@@ -30,8 +32,16 @@ import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededExceptio
 import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
+/**
+ * Helper class for calling KMS alias APIs. The primary function of this class
+ * is to wrap KMS service exceptions with the appropriate CloudFormation exception.
+ * This is necessary so that CloudFormation can determine whether or not it should
+ * retry a failed request.
+ */
 public class AliasHelper {
     static final String THROTTLING_ERROR_CODE = "ThrottlingException";
+    static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
+
     private static final String CREATE_ALIAS = "CreateAlias";
     private static final String DELETE_ALIAS = "DeleteAlias";
     private static final String LIST_ALIASES = "ListAliases";
@@ -75,11 +85,18 @@ public class AliasHelper {
         } catch (final LimitExceededException e) {
             throw new CfnServiceLimitExceededException(ResourceModel.TYPE_NAME, e.getMessage());
         } catch (final InvalidMarkerException e) {
+            // We should never make a call with an invalid marker, if we did, there is an issue
             throw new CfnInternalFailureException(e);
         } catch (final KmsInternalException | DependencyTimeoutException e) {
             throw new CfnServiceInternalErrorException(e);
         } catch (final NotFoundException e) {
             throw new CfnNotFoundException(e);
+        } catch (final KmsException e) {
+            if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
+                throw new CfnAccessDeniedException(operation, e);
+            }
+
+            throw new CfnGeneralServiceException(operation, e);
         } catch (final AmazonServiceException exception) {
             if (THROTTLING_ERROR_CODE.equals(exception.getErrorCode())) {
                 throw new CfnThrottlingException(operation, exception);

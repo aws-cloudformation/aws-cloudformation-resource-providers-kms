@@ -3,13 +3,16 @@ package software.amazon.kms.alias;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 
 import java.time.Duration;
 import java.util.List;
 import org.assertj.core.util.Lists;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,8 +65,15 @@ public class ReadHandlerTest extends AbstractTestBase {
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
+    @AfterEach
+    public void post_execute() {
+        verify(kms, atLeastOnce()).serviceName();
+        verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(aliasHelper);
+    }
+
     @Test
-    public void handleRequest() {
+    public void handleRequest_SimpleSuccess() {
         List<AliasListEntry> aliases = Lists.newArrayList(AliasListEntry.builder()
             .aliasName(ALIAS_NAME_BASE)
             .targetKeyId(KEY_ID).build());
@@ -87,7 +97,7 @@ public class ReadHandlerTest extends AbstractTestBase {
     }
 
     @Test
-    public void handleRequestNotFound() {
+    public void handleRequest_NotFound() {
         final List<AliasListEntry> aliasesPage1 = Lists.newArrayList(AliasListEntry.builder()
             .aliasName(ALIAS_NAME_REQ1)
             .targetKeyId(KEY_ID).build());

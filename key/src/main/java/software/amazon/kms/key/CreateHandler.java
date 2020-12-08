@@ -13,7 +13,6 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class CreateHandler extends BaseHandlerStd {
-
     public CreateHandler() {
         super();
     }

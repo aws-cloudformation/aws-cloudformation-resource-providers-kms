@@ -1,11 +1,14 @@
 package software.amazon.kms.alias;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 
 import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,8 +50,15 @@ public class CreateHandlerTest extends AbstractTestBase {
         proxyKmsClient = MOCK_PROXY(proxy, kms);
     }
 
+    @AfterEach
+    public void post_execute() {
+        verify(kms, atLeastOnce()).serviceName();
+        verifyNoMoreInteractions(proxyKmsClient.client());
+        verifyNoMoreInteractions(aliasHelper);
+    }
+
     @Test
-    public void handleRequest() {
+    public void handleRequest_SimpleSuccess() {
         final ProgressEvent<ResourceModel, CallbackContext> response
                 = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
 

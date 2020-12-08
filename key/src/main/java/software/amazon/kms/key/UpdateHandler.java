@@ -18,7 +18,6 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class UpdateHandler extends BaseHandlerStd {
-
     public UpdateHandler() {
         super();
     }
