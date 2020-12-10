@@ -26,7 +26,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
     final KeyHelper keyHelper;
 
     public BaseHandlerStd() {
-        this.keyHelper = new KeyHelper();
+        this(new KeyHelper());
     }
 
     public BaseHandlerStd(final KeyHelper keyHelper) {

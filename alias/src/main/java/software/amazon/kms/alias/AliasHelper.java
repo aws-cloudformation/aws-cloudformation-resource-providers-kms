@@ -1,6 +1,5 @@
 package software.amazon.kms.alias;
 
-import com.amazonaws.AmazonServiceException;
 import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
@@ -97,15 +96,11 @@ public class AliasHelper {
                 throw new CfnAccessDeniedException(operation, e);
             } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnInvalidRequestException(e);
+            } else if (THROTTLING_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
+                throw new CfnThrottlingException(operation, e);
             }
 
             throw new CfnGeneralServiceException(operation, e);
-        } catch (final AmazonServiceException exception) {
-            if (THROTTLING_ERROR_CODE.equals(exception.getErrorCode())) {
-                throw new CfnThrottlingException(operation, exception);
-            }
-
-            throw new CfnGeneralServiceException(operation, exception);
         }
     }
 }

@@ -11,7 +11,6 @@ import static software.amazon.kms.alias.AliasHelper.THROTTLING_ERROR_CODE;
 import static software.amazon.kms.alias.AliasHelper.VALIDATION_ERROR_CODE;
 
 
-import com.amazonaws.AmazonServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -169,8 +168,14 @@ public class AliasHelperTest extends AbstractTestBase {
 
     @Test
     public void testThrottling() {
-        final AmazonServiceException throttlingException = new AmazonServiceException("");
-        throttlingException.setErrorCode(THROTTLING_ERROR_CODE);
+        final AwsServiceException throttlingException = KmsException.builder().awsErrorDetails(
+            AwsErrorDetails.builder()
+                .sdkHttpResponse(SdkHttpResponse.builder()
+                    .statusCode(400)
+                    .build())
+                .errorCode(THROTTLING_ERROR_CODE)
+                .build())
+            .build();
         doThrow(throttlingException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnThrottlingException.class);
@@ -212,15 +217,6 @@ public class AliasHelperTest extends AbstractTestBase {
             KmsException.builder().awsErrorDetails(AwsErrorDetails.builder()
                 .build()).build();
         doThrow(generalKmsException).when(proxy).injectCredentialsAndInvokeV2(any(), any());
-
-        assertAllRequestsThrow(CfnGeneralServiceException.class);
-    }
-
-    @Test
-    public void testGeneralAmazonServiceException() {
-        final AmazonServiceException generalAmazonServiceException = new AmazonServiceException("");
-        doThrow(generalAmazonServiceException).when(proxy)
-            .injectCredentialsAndInvokeV2(any(), any());
 
         assertAllRequestsThrow(CfnGeneralServiceException.class);
     }

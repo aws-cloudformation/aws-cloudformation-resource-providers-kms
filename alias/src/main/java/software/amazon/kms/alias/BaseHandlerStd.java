@@ -11,7 +11,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
   final AliasHelper aliasHelper;
 
   public BaseHandlerStd() {
-    this.aliasHelper = new AliasHelper();
+    this(new AliasHelper());
   }
 
   public BaseHandlerStd(final AliasHelper aliasHelper) {

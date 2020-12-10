@@ -1,6 +1,5 @@
 package software.amazon.kms.key;
 
-import com.amazonaws.AmazonServiceException;
 import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
@@ -212,11 +211,7 @@ public class KeyHelper {
                 throw new CfnAccessDeniedException(operation, e);
             } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnInvalidRequestException(e);
-            }
-
-            throw new CfnGeneralServiceException(operation, e);
-        } catch (final AmazonServiceException e) {
-            if (THROTTLING_ERROR_CODE.equals(e.getErrorCode())) {
+            } else if (THROTTLING_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnThrottlingException(operation, e);
             }
 
