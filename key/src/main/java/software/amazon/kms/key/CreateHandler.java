@@ -3,6 +3,7 @@ package software.amazon.kms.key;
 import static software.amazon.kms.key.ModelAdapter.setDefaults;
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
+
 import com.amazonaws.util.StringUtils;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -12,6 +13,14 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class CreateHandler extends BaseHandlerStd {
+    public CreateHandler() {
+        super();
+    }
+
+    public CreateHandler(final KeyHelper keyHelper) {
+        super(keyHelper);
+    }
+
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
@@ -26,9 +35,7 @@ public class CreateHandler extends BaseHandlerStd {
                 .translateToServiceRequest((resourceModel) ->
                     Translator
                         .createCustomerMasterKey(resourceModel, request.getDesiredResourceTags()))
-                .makeServiceCall((createKeyRequest, proxyInvocation) ->
-                    proxyInvocation.injectCredentialsAndInvokeV2(createKeyRequest,
-                        proxyInvocation.client()::createKey))
+                .makeServiceCall(keyHelper::createKey)
                 .done(createKeyResponse -> {
                     if (!StringUtils.isNullOrEmpty(model.getKeyId())) {
                         return ProgressEvent.progress(model, callbackContext);
@@ -55,7 +62,7 @@ public class CreateHandler extends BaseHandlerStd {
                 if (!model.getEnabled()) {
                     // Update key status (Enabled by default)
                     return updateKeyStatus(proxy, proxyClient, model, callbackContext,
-                            model.getEnabled());
+                        model.getEnabled());
                 }
                 return progress;
             })

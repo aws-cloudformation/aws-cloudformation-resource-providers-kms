@@ -8,7 +8,9 @@ class Configuration extends BaseConfiguration {
     public Configuration() {
         super("aws-kms-alias.json");
     }
+
     public JSONObject resourceSchemaJSONObject() {
-        return new JSONObject(new JSONTokener(this.getClass().getClassLoader().getResourceAsStream(schemaFilename)));
+        return new JSONObject(
+            new JSONTokener(this.getClass().getClassLoader().getResourceAsStream(schemaFilename)));
     }
 }

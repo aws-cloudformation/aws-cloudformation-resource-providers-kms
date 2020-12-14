@@ -8,36 +8,40 @@ import software.amazon.awssdk.services.kms.model.UpdateAliasRequest;
 
 
 public class Translator {
+    private Translator() {
+        // Prevent instantiation
+    }
+
     static CreateAliasRequest createAliasRequest(final ResourceModel resourceModel) {
         return CreateAliasRequest.builder()
-                .aliasName(resourceModel.getAliasName())
-                .targetKeyId(resourceModel.getTargetKeyId())
-                .build();
+            .aliasName(resourceModel.getAliasName())
+            .targetKeyId(resourceModel.getTargetKeyId())
+            .build();
     }
 
-    static DeleteAliasRequest deleteAliasRequest(final String aliasName) {
+    static DeleteAliasRequest deleteAliasRequest(final ResourceModel resourceModel) {
         return DeleteAliasRequest.builder()
-                .aliasName(aliasName)
-                .build();
+            .aliasName(resourceModel.getAliasName())
+            .build();
     }
 
-    static ListAliasesRequest listAliasesRequest(final String keyId,
+    static ListAliasesRequest listAliasesRequest(final ResourceModel resourceModel,
                                                  final String nextToken) {
         return ListAliasesRequest.builder()
-                .keyId(keyId)
-                .marker(nextToken).build();
+            .keyId(resourceModel.getTargetKeyId())
+            .marker(nextToken).build();
     }
 
     static ResourceModel translateToResourceModel(final AliasListEntry aliasListEntry) {
         return ResourceModel.builder()
-                .aliasName(aliasListEntry.aliasName())
-                .targetKeyId(aliasListEntry.targetKeyId()).build();
+            .aliasName(aliasListEntry.aliasName())
+            .targetKeyId(aliasListEntry.targetKeyId()).build();
     }
 
     static UpdateAliasRequest updateAliasRequest(final ResourceModel resourceModel) {
         return UpdateAliasRequest.builder()
-                .aliasName(resourceModel.getAliasName())
-                .targetKeyId(resourceModel.getTargetKeyId())
-                .build();
+            .aliasName(resourceModel.getAliasName())
+            .targetKeyId(resourceModel.getTargetKeyId())
+            .build();
     }
 }

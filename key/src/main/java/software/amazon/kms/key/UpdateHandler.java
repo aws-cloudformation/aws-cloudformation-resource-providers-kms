@@ -4,6 +4,7 @@ import static software.amazon.kms.key.ModelAdapter.setDefaults;
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 import static software.amazon.kms.key.Translator.translatePolicyInput;
 
+
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.Optional;
@@ -11,14 +12,19 @@ import java.util.Set;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
-import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class UpdateHandler extends BaseHandlerStd {
-    private static final String ACCESS_DENIED_EXCEPTION_MESSAGE = "not authorized";
+    public UpdateHandler() {
+        super();
+    }
+
+    public UpdateHandler(final KeyHelper keyHelper) {
+        super(keyHelper);
+    }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
@@ -32,10 +38,7 @@ public class UpdateHandler extends BaseHandlerStd {
         return ProgressEvent.progress(model, callbackContext)
             .then(progress -> proxy.initiate("kms::update-key", proxyClient, model, callbackContext)
                 .translateToServiceRequest(Translator::describeKeyRequest)
-                .makeServiceCall((describeKeyRequest, proxyInvocation) -> proxyInvocation
-                    .injectCredentialsAndInvokeV2(describeKeyRequest,
-                        proxyInvocation.client()::describeKey))
-                .handleError(BaseHandlerStd::handleNotFound)
+                .makeServiceCall(keyHelper::describeKey)
                 .done(describeKeyResponse -> {
                     resourceStateCheck(describeKeyResponse.keyMetadata());
 
@@ -78,10 +81,7 @@ public class UpdateHandler extends BaseHandlerStd {
                     return proxy.initiate("kms::update-key-description", proxyClient, model,
                         callbackContext)
                         .translateToServiceRequest(Translator::updateKeyDescriptionRequest)
-                        .makeServiceCall(
-                            (updateKeyDescriptionRequest, proxyInvocation) -> proxyInvocation
-                                .injectCredentialsAndInvokeV2(updateKeyDescriptionRequest,
-                                    proxyInvocation.client()::updateKeyDescription))
+                        .makeServiceCall(keyHelper::updateKeyDescription)
                         .progress();
                 }
 
@@ -96,9 +96,7 @@ public class UpdateHandler extends BaseHandlerStd {
                     return proxy
                         .initiate("kms::update-key-keypolicy", proxyClient, model, callbackContext)
                         .translateToServiceRequest(Translator::putKeyPolicyRequest)
-                        .makeServiceCall((putKeyPolicyRequest, proxyInvocation) -> proxyInvocation
-                            .injectCredentialsAndInvokeV2(putKeyPolicyRequest,
-                                proxyInvocation.client()::putKeyPolicy))
+                        .makeServiceCall(keyHelper::putKeyPolicy)
                         .progress(BaseHandlerStd.CALLBACK_DELAY_SECONDS);
                     // This requires some propagation delay because the updated policy
                     // might provision new permissions which are required by the next events
@@ -106,60 +104,45 @@ public class UpdateHandler extends BaseHandlerStd {
 
                 return progress;
             })
-            .then(progress -> {
-                ProgressEvent<ResourceModel, CallbackContext> event =
-                    ProgressEvent.progress(model, callbackContext)
-                        .then(progressEvent -> BaseHandlerStd
-                            .retrieveResourceTags(proxy, proxyClient, progressEvent, false))
-                        .then(progressEvent -> {
-                            final Set<Tag> existingTags =
-                                Optional.ofNullable(callbackContext.getExistingTags())
-                                    .orElse(new HashSet<>());
-                            final Set<Tag> tagsToRemove = Sets.difference(existingTags,
-                                Translator.translateTagsToSdk(request.getDesiredResourceTags()));
-                            if (!tagsToRemove.isEmpty()) {
-                                return proxy
-                                    .initiate("kms::untag-key", proxyClient, model, callbackContext)
-                                    .translateToServiceRequest((m) -> Translator
-                                        .untagResourceRequest(m.getKeyId(), tagsToRemove))
-                                    .makeServiceCall(
-                                        (untagResourceRequest, proxyInvocation) -> proxyClient
-                                            .injectCredentialsAndInvokeV2(untagResourceRequest,
-                                                proxyClient.client()::untagResource))
-                                    .progress();
-                            }
+            .then(progress -> softFailAccessDenied(
+                () -> ProgressEvent.progress(model, callbackContext)
+                    .then(progressEvent -> retrieveResourceTags(proxy, proxyClient, progressEvent,
+                        false))
+                    .then(progressEvent -> {
+                        final Set<Tag> existingTags =
+                            Optional.ofNullable(callbackContext.getExistingTags())
+                                .orElse(new HashSet<>());
+                        final Set<Tag> tagsToRemove = Sets.difference(existingTags,
+                            Translator.translateTagsToSdk(request.getDesiredResourceTags()));
+                        if (!tagsToRemove.isEmpty()) {
+                            return proxy
+                                .initiate("kms::untag-key", proxyClient, model, callbackContext)
+                                .translateToServiceRequest((m) -> Translator
+                                    .untagResourceRequest(m.getKeyId(), tagsToRemove))
+                                .makeServiceCall(keyHelper::untagResource)
+                                .progress();
+                        }
 
-                            return progressEvent;
-                        })
-                        .then(progressEvent -> {
-                            final Set<Tag> existingTags =
-                                Optional.ofNullable(callbackContext.getExistingTags())
-                                    .orElse(new HashSet<>());
-                            final Set<Tag> tagsToAdd = Sets.difference(
-                                Translator.translateTagsToSdk(request.getDesiredResourceTags()),
-                                existingTags);
-                            if (!tagsToAdd.isEmpty()) {
-                                return proxy
-                                    .initiate("kms::tag-key", proxyClient, model, callbackContext)
-                                    .translateToServiceRequest((m) -> Translator
-                                        .tagResourceRequest(m.getKeyId(), tagsToAdd))
-                                    .makeServiceCall(
-                                        (tagResourceRequest, proxyInvocation) -> proxyClient
-                                            .injectCredentialsAndInvokeV2(tagResourceRequest,
-                                                proxyClient.client()::tagResource))
-                                    .progress();
-                            }
+                        return progressEvent;
+                    })
+                    .then(progressEvent -> {
+                        final Set<Tag> existingTags =
+                            Optional.ofNullable(callbackContext.getExistingTags())
+                                .orElse(new HashSet<>());
+                        final Set<Tag> tagsToAdd = Sets.difference(
+                            Translator.translateTagsToSdk(request.getDesiredResourceTags()),
+                            existingTags);
+                        if (!tagsToAdd.isEmpty()) {
+                            return proxy
+                                .initiate("kms::tag-key", proxyClient, model, callbackContext)
+                                .translateToServiceRequest((m) -> Translator
+                                    .tagResourceRequest(m.getKeyId(), tagsToAdd))
+                                .makeServiceCall(keyHelper::tagResource)
+                                .progress();
+                        }
 
-                            return progressEvent;
-                        });
-
-                if (event.isFailed() && event.getErrorCode() == HandlerErrorCode.InvalidRequest
-                    && event.getMessage().contains(ACCESS_DENIED_EXCEPTION_MESSAGE)) {
-                    logger.log("[Tag Update: Soft Fail]" + event.getMessage());
-                    return progress;
-                }
-                return event;
-            })
+                        return progressEvent;
+                    }), model, callbackContext))
             .then(BaseHandlerStd::propagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(model)));
     }

@@ -8,6 +8,16 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
+  final AliasHelper aliasHelper;
+
+  public BaseHandlerStd() {
+    this(new AliasHelper());
+  }
+
+  public BaseHandlerStd(final AliasHelper aliasHelper) {
+    // Allows for mocking alias helper in our unit tests
+    this.aliasHelper = aliasHelper;
+  }
 
   @Override
   public final ProgressEvent<ResourceModel, CallbackContext> handleRequest(final AmazonWebServicesClientProxy proxy,

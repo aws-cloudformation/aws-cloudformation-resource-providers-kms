@@ -12,6 +12,14 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public class ListHandler extends BaseHandlerStd {
+    public ListHandler() {
+        super();
+    }
+
+    public ListHandler(final KeyHelper keyHelper) {
+        super(keyHelper);
+    }
+
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
@@ -19,8 +27,8 @@ public class ListHandler extends BaseHandlerStd {
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
         final ListKeysResponse listKeysResponse =
-            proxy.injectCredentialsAndInvokeV2(Translator.listKeysRequest(
-                request.getNextToken()), proxyClient.client()::listKeys);
+            keyHelper.listKeys(Translator.listKeysRequest(request.getNextToken()),
+                proxyClient);
 
         final List<ResourceModel> models = listKeysResponse.keys().stream()
             .map(key -> ResourceModel.builder().keyId(key.keyId()).build())

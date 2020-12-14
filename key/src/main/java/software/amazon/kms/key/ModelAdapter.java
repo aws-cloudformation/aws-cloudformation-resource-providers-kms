@@ -10,7 +10,7 @@ public class ModelAdapter {
     private static final Boolean DEFAULT_ENABLE_KEY_ROTATION = false;
     private static final String DEFAULT_KEY_USAGE = KeyUsageType.ENCRYPT_DECRYPT.toString();
     private static final String DEFAULT_KEY_SPEC = CustomerMasterKeySpec.SYMMETRIC_DEFAULT
-            .toString();
+        .toString();
 
     /**
      * Applies default values to the key resource model.
@@ -27,10 +27,10 @@ public class ModelAdapter {
         final String keySpec = model.getKeySpec();
 
         model.setDescription(StringUtils.isNullOrEmpty(description) ? DEFAULT_DESCRIPTION
-                : description);
+            : description);
         model.setEnabled(enabled == null ? DEFAULT_ENABLED : enabled);
         model.setEnableKeyRotation(enabledKeyRotation == null ? DEFAULT_ENABLE_KEY_ROTATION
-                : enabledKeyRotation);
+            : enabledKeyRotation);
         model.setKeyUsage(StringUtils.isNullOrEmpty(keyUsage) ? DEFAULT_KEY_USAGE : keyUsage);
         model.setKeySpec(StringUtils.isNullOrEmpty(keySpec) ? DEFAULT_KEY_SPEC : keySpec);
         return model;
@@ -44,15 +44,15 @@ public class ModelAdapter {
      */
     public static ResourceModel unsetWriteOnly(final ResourceModel model) {
         return ResourceModel.builder()
-                .arn(model.getArn())
-                .description(model.getDescription())
-                .enabled(model.getEnabled())
-                .enableKeyRotation(model.getEnableKeyRotation())
-                .keyId(model.getKeyId())
-                .keyPolicy(model.getKeyPolicy())
-                .keyUsage(model.getKeyUsage())
-                .keySpec(model.getKeySpec())
-                .tags(model.getTags())
-                .build();
+            .arn(model.getArn())
+            .description(model.getDescription())
+            .enabled(model.getEnabled())
+            .enableKeyRotation(model.getEnableKeyRotation())
+            .keyId(model.getKeyId())
+            .keyPolicy(model.getKeyPolicy())
+            .keyUsage(model.getKeyUsage())
+            .keySpec(model.getKeySpec())
+            .tags(model.getTags())
+            .build();
     }
 }
