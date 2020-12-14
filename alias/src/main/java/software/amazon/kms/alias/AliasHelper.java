@@ -61,10 +61,10 @@ public class AliasHelper {
                 proxyClient.client()::deleteAlias));
     }
 
-    public ListAliasesResponse listAliases(final ListAliasesRequest deleteAliasRequest,
+    public ListAliasesResponse listAliases(final ListAliasesRequest listAliasesRequest,
                                            final ProxyClient<KmsClient> proxyClient) {
         return wrapKmsExceptions(LIST_ALIASES,
-            () -> proxyClient.injectCredentialsAndInvokeV2(deleteAliasRequest,
+            () -> proxyClient.injectCredentialsAndInvokeV2(listAliasesRequest,
                 proxyClient.client()::listAliases));
     }
 
