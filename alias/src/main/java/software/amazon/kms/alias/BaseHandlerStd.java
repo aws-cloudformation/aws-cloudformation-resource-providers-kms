@@ -8,6 +8,8 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
+  protected static final int CALLBACK_DELAY_SECONDS = 60;
+
   final AliasHelper aliasHelper;
 
   public BaseHandlerStd() {
@@ -38,4 +40,20 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext>  {
       CallbackContext callbackContext,
       ProxyClient<KmsClient> proxyClient,
       Logger logger);
+
+  /**
+   * Perform the final propagation delay to make sure the latest
+   * changes to the alias are available throughout the region.
+   */
+  protected static ProgressEvent<ResourceModel, CallbackContext> propagate(
+      final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
+    final CallbackContext callbackContext = progressEvent.getCallbackContext();
+    if (callbackContext.isPropagated()) {
+      return progressEvent;
+    }
+
+    callbackContext.setPropagated(true);
+    return ProgressEvent.defaultInProgressHandler(callbackContext, CALLBACK_DELAY_SECONDS,
+            progressEvent.getResourceModel());
+  }
 }

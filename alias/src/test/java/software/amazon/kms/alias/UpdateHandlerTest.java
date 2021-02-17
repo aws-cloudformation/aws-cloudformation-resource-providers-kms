@@ -59,9 +59,30 @@ public class UpdateHandlerTest extends AbstractTestBase {
     }
 
     @Test
-    public void handleRequest_SimpleSuccess() {
+    public void handleRequest_PartiallyPropagate() {
         final ProgressEvent<ResourceModel, CallbackContext> response
             = handler.handleRequest(proxy, request, new CallbackContext(), proxyKmsClient, logger);
+
+        verify(aliasHelper)
+            .updateAlias(eq(Translator.updateAliasRequest(model)), eq(proxyKmsClient));
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
+        assertThat(response.getCallbackContext().propagated).isEqualTo(true);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_SimpleSuccess() {
+        final CallbackContext callbackContext = new CallbackContext();
+        callbackContext.setPropagated(true);
+        final ProgressEvent<ResourceModel, CallbackContext> response
+            = handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, logger);
 
         verify(aliasHelper)
             .updateAlias(eq(Translator.updateAliasRequest(model)), eq(proxyKmsClient));

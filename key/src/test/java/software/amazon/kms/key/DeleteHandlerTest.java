@@ -61,7 +61,7 @@ public class DeleteHandlerTest extends AbstractTestBase {
     }
 
     @Test
-    public void handleRequest_SimpleSuccess() {
+    public void handleRequest_PartiallyPropagate() {
         final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse =
             ScheduleKeyDeletionResponse.builder().build();
         when(keyHelper
@@ -84,6 +84,45 @@ public class DeleteHandlerTest extends AbstractTestBase {
                 new CallbackContext(), proxyKmsClient, logger);
 
         assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.IN_PROGRESS);
+        assertThat(response.getCallbackContext()).isNotNull();
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(60);
+        assertThat(response.getCallbackContext().isPropagated()).isTrue();
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+
+        verify(keyHelper)
+            .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
+        verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
+    }
+
+    @Test
+    public void handleRequest_SimpleSuccess() {
+        final ScheduleKeyDeletionResponse scheduleKeyDeletionResponse =
+                ScheduleKeyDeletionResponse.builder().build();
+        when(keyHelper
+                .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient)))
+                .thenReturn(scheduleKeyDeletionResponse);
+
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder()
+                .keyMetadata(KeyMetadata.builder().keyState(KeyState.PENDING_DELETION).build())
+                .build();
+        when(keyHelper.describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient)))
+                .thenReturn(describeKeyResponse);
+
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .desiredResourceState(ResourceModel.builder().build())
+                        .build();
+
+        final CallbackContext callbackContext = new CallbackContext();
+        callbackContext.setPropagated(true);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request,
+                callbackContext, proxyKmsClient, logger);
+
+        assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackContext()).isNull();
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
@@ -92,7 +131,7 @@ public class DeleteHandlerTest extends AbstractTestBase {
         assertThat(response.getErrorCode()).isNull();
 
         verify(keyHelper)
-            .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
+                .scheduleKeyDeletion(any(ScheduleKeyDeletionRequest.class), eq(proxyKmsClient));
         verify(keyHelper).describeKey(any(DescribeKeyRequest.class), eq(proxyKmsClient));
     }
 
