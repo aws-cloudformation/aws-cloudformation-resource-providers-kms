@@ -30,7 +30,14 @@ public class UpdateHandler extends BaseHandlerStd {
                 progress -> proxy.initiate("kms::update-alias", proxyClient, model, callbackContext)
                     .translateToServiceRequest(Translator::updateAliasRequest)
                     .makeServiceCall(aliasHelper::updateAlias)
-                    .done(createAliasResponse -> progress))
+                    .done(updateAliasResponse -> {
+                        logger.log(String
+                            .format("%s [%s] has been successfully updated",
+                                ResourceModel.TYPE_NAME,
+                                model.getAliasName()));
+
+                        return progress;
+                    }))
             .then(BaseHandlerStd::propagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(model));
     }
