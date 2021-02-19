@@ -30,21 +30,26 @@ public class DeleteHandler extends BaseHandlerStd {
         final Logger logger) {
         final ResourceModel model = request.getDesiredResourceState();
 
-        try {
-            return proxy.initiate("kms::delete-key", proxyClient, model, callbackContext)
-                .translateToServiceRequest(Translator::scheduleKeyDeletionRequest)
-                .makeServiceCall(keyHelper::scheduleKeyDeletion)
-                .stabilize(this::isDeleted)
-                .done(scheduleKeyDeletionResponse -> ProgressEvent.defaultSuccessHandler(null));
-        } catch (final CfnInvalidRequestException e) {
-            if (e.getCause() instanceof KmsInvalidStateException) {
-                // Invalid state can only happen if the key is pending deletion,
-                // treat it as not found.
-                return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.NotFound);
-            }
+        return ProgressEvent.progress(model, callbackContext)
+            .then(progress -> {
+                try {
+                    return proxy.initiate("kms::delete-key", proxyClient, model, callbackContext)
+                        .translateToServiceRequest(Translator::scheduleKeyDeletionRequest)
+                        .makeServiceCall(keyHelper::scheduleKeyDeletion)
+                        .stabilize(this::isDeleted)
+                        .done(scheduleKeyDeletionResponse -> progress);
+                } catch (final CfnInvalidRequestException e) {
+                    if (e.getCause() instanceof KmsInvalidStateException) {
+                        // Invalid state can only happen if the key is pending deletion,
+                        // treat it as not found.
+                        return ProgressEvent.defaultFailureHandler(e, HandlerErrorCode.NotFound);
+                    }
 
-            throw e;
-        }
+                    throw e;
+                }
+            })
+            .then(BaseHandlerStd::propagate)
+            .then(progress -> ProgressEvent.defaultSuccessHandler(null));
     }
 
     private boolean isDeleted(final ScheduleKeyDeletionRequest scheduleKeyDeletionRequest,

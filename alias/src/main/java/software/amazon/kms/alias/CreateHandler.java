@@ -25,15 +25,20 @@ public class CreateHandler extends BaseHandlerStd {
 
         final ResourceModel model = request.getDesiredResourceState();
 
-        return proxy.initiate("kms::create-alias", proxyClient, model, callbackContext)
-            .translateToServiceRequest(Translator::createAliasRequest)
-            .makeServiceCall(aliasHelper::createAlias)
-            .done(createAliasResponse -> {
-                logger.log(String
-                    .format("%s [%s] has been successfully created", ResourceModel.TYPE_NAME,
-                        model.getAliasName()));
+        return ProgressEvent.progress(model, callbackContext)
+            .then(
+                progress -> proxy.initiate("kms::create-alias", proxyClient, model, callbackContext)
+                    .translateToServiceRequest(Translator::createAliasRequest)
+                    .makeServiceCall(aliasHelper::createAlias)
+                    .done(createAliasResponse -> {
+                        logger.log(String
+                            .format("%s [%s] has been successfully created",
+                                ResourceModel.TYPE_NAME,
+                                model.getAliasName()));
 
-                return ProgressEvent.defaultSuccessHandler(model);
-            });
+                        return progress;
+                    }))
+            .then(BaseHandlerStd::propagate)
+            .then(progress -> ProgressEvent.defaultSuccessHandler(model));
     }
 }
