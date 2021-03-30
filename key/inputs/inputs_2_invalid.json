@@ -1,4 +1,7 @@
 {
+  "KeyId": "123a45b6-7c89-1011-de1f-21314ghi1j51",
+  "Description": "[Contract Test] Complex Invalid Update",
+  "Enabled": true,
   "EnableKeyRotation": true,
   "KeyPolicy": {
     "Version": "2012-10-17",
@@ -8,16 +11,16 @@
         "Sid": "Enable IAM User Permissions",
         "Effect": "Allow",
         "Principal": {
-          "AWS": "arn:aws:iam::${userAccount}:root"
+          "AWS": "arn:aws:iam::{{AWSAccountId}}:root"
         },
         "Action": "kms:*",
         "Resource": "*"
       }
     ]
   },
-  "KeySpec": "ECC_NIST_P256",
-  "KeyUsage": "SIGN_VERIFY",
-  "PendingWindowInDays": 7,
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyUsage": "ENCRYPT_DECRYPT",
+  "PendingWindowInDays": 1,
   "Tags": [
     {
       "Key": "Key",

@@ -1,0 +1,4 @@
+{
+  "AliasName": "alias/ContractAlias",
+  "TargetKeyId": "{{ContractTestAliasKey1}}"
+}

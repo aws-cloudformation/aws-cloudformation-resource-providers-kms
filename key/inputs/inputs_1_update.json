@@ -1,7 +1,7 @@
 {
-  "Description": "[Contract Test] update",
-  "Enabled": true,
-  "EnableKeyRotation": false,
+  "Description": "[Contract Test] Update With Defaults",
+  "Enabled": false,
+  "EnableKeyRotation": true,
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -10,13 +10,12 @@
         "Sid": "Enable IAM User Permissions",
         "Effect": "Allow",
         "Principal": {
-          "AWS": "arn:aws:iam::${userAccount}:root"
+          "AWS": "arn:aws:iam::{{AWSAccountId}}:root"
         },
         "Action": "kms:*",
         "Resource": "*"
       }
     ]
   },
-  "KeyUsage": "ENCRYPT_DECRYPT",
   "PendingWindowInDays": 7
 }

@@ -1,5 +1,7 @@
 {
-  "Description": "[Contract Test] create asymmetric",
+  "Description": "[Contract Test] Complex Create",
+  "Enabled": false,
+  "EnableKeyRotation": false,
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -8,15 +10,15 @@
         "Sid": "Enable IAM User Permissions",
         "Effect": "Allow",
         "Principal": {
-          "AWS": "arn:aws:iam::${userAccount}:root"
+          "AWS": "arn:aws:iam::{{AWSAccountId}}:root"
         },
         "Action": "kms:*",
         "Resource": "*"
       }
     ]
   },
-  "KeySpec": "ECC_NIST_P256",
-  "KeyUsage": "SIGN_VERIFY",
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyUsage": "ENCRYPT_DECRYPT",
   "PendingWindowInDays": 7,
   "Tags": [
     {

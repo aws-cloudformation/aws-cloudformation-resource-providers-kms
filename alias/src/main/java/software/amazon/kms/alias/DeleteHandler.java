@@ -39,6 +39,6 @@ public class DeleteHandler extends BaseHandlerStd {
                         return progress;
                     }))
             .then(BaseHandlerStd::propagate)
-            .then(progress -> ProgressEvent.defaultSuccessHandler(model));
+            .then(progress -> ProgressEvent.defaultSuccessHandler(null));
     }
 }

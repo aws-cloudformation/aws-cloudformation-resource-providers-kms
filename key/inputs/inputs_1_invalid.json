@@ -1,8 +1,6 @@
 {
   "KeyId": "123a45b6-7c89-1011-de1f-21314ghi1j51",
-  "Description": "[Contract Test] update",
-  "Enabled": true,
-  "EnableKeyRotation": false,
+  "Description": "[Contract Test] Invalid Update With Defaults",
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -11,13 +9,12 @@
         "Sid": "Enable IAM User Permissions",
         "Effect": "Allow",
         "Principal": {
-          "AWS": "arn:aws:iam::${userAccount}:root"
+          "AWS": "arn:aws:iam::{{AWSAccountId}}:root"
         },
         "Action": "kms:*",
         "Resource": "*"
       }
     ]
   },
-  "KeyUsage": "ENCRYPT_DECRYPT_INVALID",
-  "PendingWindowInDays": 7
+  "KeyUsage": "ENCRYPT_DECRYPT_INVALID"
 }
