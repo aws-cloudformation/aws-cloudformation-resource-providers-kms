@@ -1,5 +1,7 @@
 {
-  "Enabled": false,
+  "Description": "[Contract Test] Complex Update",
+  "Enabled": true,
+  "EnableKeyRotation": false,
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -8,16 +10,16 @@
         "Sid": "Enable IAM User Permissions",
         "Effect": "Allow",
         "Principal": {
-          "AWS": "arn:aws:iam::${userAccount}:root"
+          "AWS": "arn:{{AWSPartition}}:iam::{{AWSAccountId}}:root"
         },
         "Action": "kms:*",
         "Resource": "*"
       }
     ]
   },
-  "KeySpec": "ECC_NIST_P256",
-  "KeyUsage": "SIGN_VERIFY",
-  "PendingWindowInDays": 7,
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyUsage": "ENCRYPT_DECRYPT",
+  "PendingWindowInDays": 8,
   "Tags": [
     {
       "Key": "Key",
