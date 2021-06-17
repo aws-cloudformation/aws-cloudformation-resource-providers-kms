@@ -6,14 +6,18 @@ import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 
 public class UpdateHandler extends BaseHandlerStd {
     public UpdateHandler() {
         super();
     }
 
-    public UpdateHandler(final AliasHelper aliasHelper) {
-        super(aliasHelper);
+    public UpdateHandler(final ClientBuilder clientBuilder, final AliasApiHelper aliasApiHelper,
+                         final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                             eventualConsistencyHandlerHelper) {
+        super(clientBuilder, aliasApiHelper, eventualConsistencyHandlerHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -29,7 +33,7 @@ public class UpdateHandler extends BaseHandlerStd {
             .then(
                 progress -> proxy.initiate("kms::update-alias", proxyClient, model, callbackContext)
                     .translateToServiceRequest(Translator::updateAliasRequest)
-                    .makeServiceCall(aliasHelper::updateAlias)
+                    .makeServiceCall(aliasApiHelper::updateAlias)
                     .done(updateAliasResponse -> {
                         logger.log(String
                             .format("%s [%s] has been successfully updated",
@@ -38,7 +42,7 @@ public class UpdateHandler extends BaseHandlerStd {
 
                         return progress;
                     }))
-            .then(BaseHandlerStd::propagate)
+            .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(model));
     }
 }

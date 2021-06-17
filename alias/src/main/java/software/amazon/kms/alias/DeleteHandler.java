@@ -6,14 +6,18 @@ import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 
 public class DeleteHandler extends BaseHandlerStd {
     public DeleteHandler() {
         super();
     }
 
-    public DeleteHandler(final AliasHelper aliasHelper) {
-        super(aliasHelper);
+    public DeleteHandler(final ClientBuilder clientBuilder, final AliasApiHelper aliasApiHelper,
+                         final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                             eventualConsistencyHandlerHelper) {
+        super(clientBuilder, aliasApiHelper, eventualConsistencyHandlerHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -29,7 +33,7 @@ public class DeleteHandler extends BaseHandlerStd {
             .then(
                 progress -> proxy.initiate("kms::delete-alias", proxyClient, model, callbackContext)
                     .translateToServiceRequest(Translator::deleteAliasRequest)
-                    .makeServiceCall(aliasHelper::deleteAlias)
+                    .makeServiceCall(aliasApiHelper::deleteAlias)
                     .done(deleteAliasResponse -> {
                         logger.log(String
                             .format("%s [%s] has been successfully deleted",
@@ -38,7 +42,7 @@ public class DeleteHandler extends BaseHandlerStd {
 
                         return progress;
                     }))
-            .then(BaseHandlerStd::propagate)
+            .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(null));
     }
 }

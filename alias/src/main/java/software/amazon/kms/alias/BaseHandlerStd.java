@@ -6,19 +6,26 @@ import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 
 public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
-    protected static final int CALLBACK_DELAY_SECONDS = 60;
-
-    final AliasHelper aliasHelper;
+    final ClientBuilder clientBuilder;
+    final AliasApiHelper aliasApiHelper;
+    final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+        eventualConsistencyHandlerHelper;
 
     public BaseHandlerStd() {
-        this(new AliasHelper());
+        this(new ClientBuilder(), new AliasApiHelper(), new EventualConsistencyHandlerHelper<>());
     }
 
-    public BaseHandlerStd(final AliasHelper aliasHelper) {
-        // Allows for mocking alias helper in our unit tests
-        this.aliasHelper = aliasHelper;
+    public BaseHandlerStd(final ClientBuilder clientBuilder, final AliasApiHelper aliasApiHelper,
+                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                              eventualConsistencyHandlerHelper) {
+        // Allows for mocking helpers in our unit tests
+        this.clientBuilder = clientBuilder;
+        this.aliasApiHelper = aliasApiHelper;
+        this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
     }
 
     @Override
@@ -31,7 +38,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             proxy,
             request,
             callbackContext != null ? callbackContext : new CallbackContext(),
-            proxy.newProxy(ClientBuilder::getClient),
+            proxy.newProxy(clientBuilder::getClient),
             logger);
     }
 
@@ -41,20 +48,4 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         CallbackContext callbackContext,
         ProxyClient<KmsClient> proxyClient,
         Logger logger);
-
-    /**
-     * Perform the final propagation delay to make sure the latest
-     * changes to the alias are available throughout the region.
-     */
-    protected static ProgressEvent<ResourceModel, CallbackContext> propagate(
-        final ProgressEvent<ResourceModel, CallbackContext> progressEvent) {
-        final CallbackContext callbackContext = progressEvent.getCallbackContext();
-        if (callbackContext.isPropagated()) {
-            return progressEvent;
-        }
-
-        callbackContext.setPropagated(true);
-        return ProgressEvent.defaultInProgressHandler(callbackContext, CALLBACK_DELAY_SECONDS,
-            progressEvent.getResourceModel());
-    }
 }

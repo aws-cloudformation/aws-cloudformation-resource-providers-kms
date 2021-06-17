@@ -18,6 +18,7 @@ To declare this entity in your AWS CloudFormation template, use the following sy
         "<a href="#keypolicy" title="KeyPolicy">KeyPolicy</a>" : <i>Map, String</i>,
         "<a href="#keyusage" title="KeyUsage">KeyUsage</a>" : <i>String</i>,
         "<a href="#keyspec" title="KeySpec">KeySpec</a>" : <i>String</i>,
+        "<a href="#multiregion" title="MultiRegion">MultiRegion</a>" : <i>Boolean</i>,
         "<a href="#pendingwindowindays" title="PendingWindowInDays">PendingWindowInDays</a>" : <i>Integer</i>,
         "<a href="#tags" title="Tags">Tags</a>" : <i>[ <a href="tag.md">Tag</a>, ... ]</i>,
     }
@@ -35,6 +36,7 @@ Properties:
     <a href="#keypolicy" title="KeyPolicy">KeyPolicy</a>: <i>Map, String</i>
     <a href="#keyusage" title="KeyUsage">KeyUsage</a>: <i>String</i>
     <a href="#keyspec" title="KeySpec">KeySpec</a>: <i>String</i>
+    <a href="#multiregion" title="MultiRegion">MultiRegion</a>: <i>Boolean</i>
     <a href="#pendingwindowindays" title="PendingWindowInDays">PendingWindowInDays</a>: <i>Integer</i>
     <a href="#tags" title="Tags">Tags</a>: <i>
       - <a href="tag.md">Tag</a></i>
@@ -105,6 +107,16 @@ _Required_: No
 _Type_: String
 
 _Allowed Values_: <code>SYMMETRIC_DEFAULT</code> | <code>RSA_2048</code> | <code>RSA_3072</code> | <code>RSA_4096</code> | <code>ECC_NIST_P256</code> | <code>ECC_NIST_P384</code> | <code>ECC_NIST_P521</code> | <code>ECC_SECG_P256K1</code>
+
+_Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+
+#### MultiRegion
+
+Specifies whether the CMK should be Multi-Region. You can't change the MultiRegion value after the CMK is created.
+
+_Required_: No
+
+_Type_: Boolean
 
 _Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
 

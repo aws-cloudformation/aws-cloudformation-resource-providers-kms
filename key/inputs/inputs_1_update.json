@@ -1,7 +1,7 @@
 {
-  "Description": "[Contract Test] Update With Defaults",
-  "Enabled": false,
-  "EnableKeyRotation": true,
+  "Description": "[Contract Test] Update",
+  "Enabled": true,
+  "EnableKeyRotation": false,
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -17,5 +17,17 @@
       }
     ]
   },
-  "PendingWindowInDays": 7
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyUsage": "ENCRYPT_DECRYPT",
+  "PendingWindowInDays": 8,
+  "Tags": [
+    {
+      "Key": "Key",
+      "Value": "Value"
+    },
+    {
+      "Key": "Key2",
+      "Value": "Value2"
+    }
+  ]
 }

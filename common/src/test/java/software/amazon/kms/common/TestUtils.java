@@ -1,8 +1,7 @@
-package software.amazon.kms.alias;
+package software.amazon.kms.common;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -10,25 +9,13 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
-import software.amazon.cloudformation.proxy.Credentials;
-import software.amazon.cloudformation.proxy.LoggerProxy;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
-public class AbstractTestBase {
-    protected static final Credentials MOCK_CREDENTIALS;
-    protected static final org.slf4j.Logger delegate;
-    protected static final LoggerProxy logger;
-
-    static {
-        System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
-        System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "HH:mm:ss:SSS Z");
-        MOCK_CREDENTIALS = new Credentials("accessKey", "secretKey", "token");
-
-        delegate = LoggerFactory.getLogger("testing");
-        logger = new LoggerProxy();
-    }
-
-    static ProxyClient<KmsClient> MOCK_PROXY(
+public class TestUtils {
+    /**
+     * Builds a mock KMS proxy client for tests.
+     */
+    public static ProxyClient<KmsClient> buildMockProxy(
         final AmazonWebServicesClientProxy proxy,
         final KmsClient kmsClient
     ) {
@@ -76,5 +63,9 @@ public class AbstractTestBase {
                 return kmsClient;
             }
         };
+    }
+
+    private TestUtils() {
+        // Prevent Instantiation
     }
 }

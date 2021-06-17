@@ -1,18 +1,14 @@
-package software.amazon.kms.key;
+package software.amazon.kms.common;
 
-import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
-import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
 import software.amazon.awssdk.services.kms.model.DisableKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.DisableKeyRotationResponse;
-import software.amazon.awssdk.services.kms.model.DisabledException;
 import software.amazon.awssdk.services.kms.model.EnableKeyRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyResponse;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
@@ -21,53 +17,34 @@ import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
-import software.amazon.awssdk.services.kms.model.InvalidArnException;
-import software.amazon.awssdk.services.kms.model.InvalidMarkerException;
-import software.amazon.awssdk.services.kms.model.KmsException;
-import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
-import software.amazon.awssdk.services.kms.model.LimitExceededException;
 import software.amazon.awssdk.services.kms.model.ListKeysRequest;
 import software.amazon.awssdk.services.kms.model.ListKeysResponse;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
-import software.amazon.awssdk.services.kms.model.MalformedPolicyDocumentException;
-import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.PutKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.PutKeyPolicyResponse;
+import software.amazon.awssdk.services.kms.model.ReplicateKeyRequest;
+import software.amazon.awssdk.services.kms.model.ReplicateKeyResponse;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionResponse;
-import software.amazon.awssdk.services.kms.model.TagException;
 import software.amazon.awssdk.services.kms.model.TagResourceRequest;
 import software.amazon.awssdk.services.kms.model.TagResourceResponse;
-import software.amazon.awssdk.services.kms.model.UnsupportedOperationException;
 import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
 import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
-import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
-import software.amazon.cloudformation.exceptions.CfnAlreadyExistsException;
-import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
-import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
-import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
-import software.amazon.cloudformation.exceptions.CfnNotFoundException;
-import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorException;
-import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
-import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
 /**
- * Helper class for calling KMS key APIs. The primary function of this class
- * is to wrap KMS service exceptions with the appropriate CloudFormation exception.
- * This is necessary so that CloudFormation can determine whether or not it should
- * retry a failed request.
+ * Implementation of AbstractKmsApiHelper that supports KMS Key Operations.
  */
-public class KeyHelper {
+public class KeyApiHelper extends AbstractKmsApiHelper {
     static final String THROTTLING_ERROR_CODE = "ThrottlingException";
     static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
     static final String VALIDATION_ERROR_CODE = "ValidationException";
 
     private static final String CREATE_KEY = "CreateKey";
+    private static final String REPLICATE_KEY = "ReplicateKey";
     private static final String DESCRIBE_KEY = "DescribeKey";
     private static final String DISABLE_KEY = "DisableKey";
     private static final String ENABLE_KEY = "EnableKey";
@@ -88,6 +65,13 @@ public class KeyHelper {
         return wrapKmsExceptions(CREATE_KEY,
             () -> proxyClient.injectCredentialsAndInvokeV2(createKeyRequest,
                 proxyClient.client()::createKey));
+    }
+
+    public ReplicateKeyResponse replicateKey(final ReplicateKeyRequest replicateKeyRequest,
+                                             final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(REPLICATE_KEY,
+            () -> proxyClient.injectCredentialsAndInvokeV2(replicateKeyRequest,
+                proxyClient.client()::replicateKey));
     }
 
     public DescribeKeyResponse describeKey(final DescribeKeyRequest describeKeyRequest,
@@ -187,35 +171,5 @@ public class KeyHelper {
         return wrapKmsExceptions(UPDATE_KEY_DESCRIPTION,
             () -> proxyClient.injectCredentialsAndInvokeV2(
                 updateKeyDescriptionRequest, proxyClient.client()::updateKeyDescription));
-    }
-
-    private <T> T wrapKmsExceptions(final String operation, final Supplier<T> serviceCall) {
-        try {
-            return serviceCall.get();
-        } catch (final AlreadyExistsException e) {
-            throw new CfnAlreadyExistsException(ResourceModel.TYPE_NAME, e.getMessage());
-        } catch (final KmsInvalidStateException | InvalidArnException | MalformedPolicyDocumentException |
-            TagException | UnsupportedOperationException | DisabledException e) {
-            throw new CfnInvalidRequestException(e);
-        } catch (final LimitExceededException e) {
-            throw new CfnServiceLimitExceededException(ResourceModel.TYPE_NAME, e.getMessage());
-        } catch (final InvalidMarkerException e) {
-            // We should never make a call with an invalid marker, if we did, there is an issue
-            throw new CfnInternalFailureException(e);
-        } catch (final KmsInternalException | DependencyTimeoutException e) {
-            throw new CfnServiceInternalErrorException(e);
-        } catch (final NotFoundException e) {
-            throw new CfnNotFoundException(e);
-        } catch (final KmsException e) {
-            if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
-                throw new CfnAccessDeniedException(operation, e);
-            } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
-                throw new CfnInvalidRequestException(e);
-            } else if (THROTTLING_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
-                throw new CfnThrottlingException(operation, e);
-            }
-
-            throw new CfnGeneralServiceException(operation, e);
-        }
     }
 }

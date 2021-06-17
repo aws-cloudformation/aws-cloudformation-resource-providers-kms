@@ -5,82 +5,41 @@
         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>software.amazon.kms</groupId>
+        <artifactId>aws-kms-cloudformation</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
     <groupId>software.amazon.kms.alias</groupId>
     <artifactId>aws-kms-alias-handler</artifactId>
     <name>aws-kms-alias-handler</name>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    </properties>
-
     <dependencies>
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>kms</artifactId>
-            <version>2.15.40</version>
+            <groupId>software.amazon.kms.common</groupId>
+            <artifactId>aws-kms-common</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/software.amazon.cloudformation/aws-cloudformation-rpdk-java-plugin -->
+        <dependency>
+            <groupId>software.amazon.kms.common</groupId>
+            <artifactId>aws-kms-common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <type>test-jar</type>
+        </dependency>
+        <!-- This would be inherited from the parent pom.xml, but the 'cfn' command line tool -->
+        <!-- requires an explicit reference to a language plugin in this file. -->
         <dependency>
             <groupId>software.amazon.cloudformation</groupId>
             <artifactId>aws-cloudformation-rpdk-java-plugin</artifactId>
             <version>[2.0.0, 3.0.0)</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.4</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.assertj/assertj-core -->
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <version>3.12.2</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.5.0-M1</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>2.26.0</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.mockito/mockito-junit-jupiter -->
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
-            <version>2.26.0</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <compilerArgs>
-                        <arg>-Xlint:all,-options,-processing</arg>
-                        <arg>-Werror</arg>
-                    </compilerArgs>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -140,85 +99,8 @@
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>2.4</version>
             </plugin>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M3</version>
-            </plugin>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.4</version>
-                <configuration>
-                    <excludes>
-                        <exclude>**/BaseConfiguration*</exclude>
-                        <exclude>**/BaseHandler*</exclude>
-                        <exclude>**/HandlerWrapper*</exclude>
-                        <exclude>**/ResourceModel*</exclude>
-                        <exclude>**/Configuration*</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>jacoco-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <rule>
-                                    <element>PACKAGE</element>
-                                    <limits>
-                                        <limit>
-                                            <counter>BRANCH</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.90</minimum>
-                                        </limit>
-                                        <limit>
-                                            <counter>INSTRUCTION</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.90</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.1</version>
-                <configuration>
-                    <configLocation>../google_checks.xml</configLocation>
-                    <encoding>UTF-8</encoding>
-                    <consoleOutput>true</consoleOutput>
-                    <failsOnError>true</failsOnError>
-                    <linkXRef>false</linkXRef>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>validate</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
+
         <resources>
             <resource>
                 <directory>${project.basedir}</directory>

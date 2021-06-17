@@ -1,23 +1,31 @@
 package software.amazon.kms.key;
 
-import java.util.List;
-import java.util.stream.Collectors;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.ListKeysResponse;
+import software.amazon.awssdk.services.kms.model.MultiRegionKeyType;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
-import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.CreatableKeyHandlerHelper;
+import software.amazon.kms.common.CreatableKeyTranslator;
+import software.amazon.kms.common.EventualConsistencyHandlerHelper;
+import software.amazon.kms.common.KeyApiHelper;
 
 public class ListHandler extends BaseHandlerStd {
     public ListHandler() {
         super();
     }
 
-    public ListHandler(final KeyHelper keyHelper) {
-        super(keyHelper);
+    public ListHandler(final ClientBuilder clientBuilder,
+                       final Translator translator,
+                       final KeyApiHelper keyApiHelper,
+                       final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                           eventualConsistencyHandlerHelper,
+                       final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper) {
+        super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
+            keyHandlerHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -26,18 +34,11 @@ public class ListHandler extends BaseHandlerStd {
         final CallbackContext callbackContext,
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
-        final ListKeysResponse listKeysResponse =
-            keyHelper.listKeys(Translator.listKeysRequest(request.getNextToken()),
-                proxyClient);
 
-        final List<ResourceModel> models = listKeysResponse.keys().stream()
-            .map(key -> ResourceModel.builder().keyId(key.keyId()).build())
-            .collect(Collectors.toList());
-
-        return ProgressEvent.<ResourceModel, CallbackContext>builder()
-            .resourceModels(models)
-            .nextToken(listKeysResponse.nextMarker())
-            .status(OperationStatus.SUCCESS)
-            .build();
+        // List all non multi-region keys and multi-region primary keys
+        return keyHandlerHelper.listKeysAndFilterByMetadata(proxyClient, request.getNextToken(),
+            keyMetadata -> !keyMetadata.multiRegion() ||
+                keyMetadata.multiRegionConfiguration().multiRegionKeyType()
+                    .equals(MultiRegionKeyType.PRIMARY));
     }
 }

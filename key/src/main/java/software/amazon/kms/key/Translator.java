@@ -1,7 +1,5 @@
 package software.amazon.kms.key;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -10,164 +8,120 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
-import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
-import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
 import software.amazon.awssdk.services.kms.model.DisableKeyRotationRequest;
-import software.amazon.awssdk.services.kms.model.EnableKeyRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
-import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
+import software.amazon.awssdk.services.kms.model.KeyListEntry;
+import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
-import software.amazon.awssdk.services.kms.model.ListKeysRequest;
-import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
-import software.amazon.awssdk.services.kms.model.PutKeyPolicyRequest;
-import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.awssdk.services.kms.model.Tag;
-import software.amazon.awssdk.services.kms.model.TagResourceRequest;
-import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
-import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
-import software.amazon.cloudformation.exceptions.TerminalException;
+import software.amazon.kms.common.CreatableKeyTranslator;
 
-public class Translator {
-    private static final String DEFAULT_POLICY_NAME = "default";
-    public static final ObjectMapper MAPPER = new ObjectMapper();
+public class Translator extends CreatableKeyTranslator<ResourceModel> {
 
-    private Translator() {
-        // Prevent instantiation
+    @Override
+    public String getKeyId(final ResourceModel model) {
+        return model.getKeyId();
     }
 
-    // Create handler
-    static CreateKeyRequest createCustomerMasterKey(final ResourceModel resourceModel,
+    @Override
+    public String getKeyDescription(final ResourceModel model) {
+        return model.getDescription();
+    }
+
+    @Override
+    public Object getKeyPolicy(final ResourceModel model) {
+        return model.getKeyPolicy();
+    }
+
+    @Override
+    public boolean getKeyEnabled(final ResourceModel model) {
+        return model.getEnabled();
+    }
+
+    @Override
+    public Integer getPendingWindowInDays(final ResourceModel model) {
+        return model.getPendingWindowInDays();
+    }
+
+    @Override
+    public KeyUsageType getKeyUsage(final ResourceModel model) {
+        return KeyUsageType.fromValue(model.getKeyUsage());
+    }
+
+    @Override
+    public CustomerMasterKeySpec getKeySpec(final ResourceModel model) {
+        return CustomerMasterKeySpec.fromValue(model.getKeySpec());
+    }
+
+    @Override
+    public Boolean isMultiRegion(final ResourceModel model) {
+        return model.getMultiRegion();
+    }
+
+    @Override
+    public void setReadOnlyKeyMetadata(final ResourceModel model, final KeyMetadata keyMetadata) {
+        model.setArn(keyMetadata.arn());
+        model.setKeyId(keyMetadata.keyId());
+    }
+
+    @Override
+    public void setKeyMetadata(final ResourceModel model, final KeyMetadata keyMetadata) {
+        setReadOnlyKeyMetadata(model, keyMetadata);
+        model.setDescription(keyMetadata.description());
+        model.setEnabled(keyMetadata.enabled());
+        model.setKeyUsage(keyMetadata.keyUsageAsString());
+        model.setKeySpec(keyMetadata.customerMasterKeySpecAsString());
+        model.setMultiRegion(keyMetadata.multiRegion());
+    }
+
+    @Override
+    public void setKeyPolicy(final ResourceModel model, final Object keyPolicy) {
+        model.setKeyPolicy(keyPolicy);
+    }
+
+    @Override
+    public void setTags(final ResourceModel model, final Set<Tag> tags) {
+        model.setTags(translateTagsFromSdk(tags));
+    }
+
+    public CreateKeyRequest createCustomerMasterKey(final ResourceModel resourceModel,
                                                     final Map<String, String> tags) {
         return CreateKeyRequest.builder()
             .description(resourceModel.getDescription())
             .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
             .customerMasterKeySpec(CustomerMasterKeySpec.fromValue(resourceModel.getKeySpec()))
             .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
+            .multiRegion(resourceModel.getMultiRegion())
             .tags(translateTagsToSdk(tags))
             .build();
     }
 
-    // Read handler
-    static DescribeKeyRequest describeKeyRequest(final ResourceModel model) {
-        return DescribeKeyRequest.builder()
-            .keyId(model.getKeyId())
-            .build();
-    }
-
-    static GetKeyRotationStatusRequest getKeyRotationStatusRequest(final ResourceModel model) {
+    public GetKeyRotationStatusRequest getKeyRotationStatusRequest(final ResourceModel model) {
         return GetKeyRotationStatusRequest.builder()
             .keyId(model.getKeyId())
             .build();
     }
 
-    static GetKeyPolicyRequest getKeyPolicyRequest(final String keyId) {
-        return GetKeyPolicyRequest.builder()
-            .keyId(keyId)
-            .policyName(DEFAULT_POLICY_NAME)
-            .build();
-    }
-
-    static ListResourceTagsRequest listResourceTagsRequest(final ResourceModel model,
-                                                           final String marker) {
-        return ListResourceTagsRequest.builder()
-            .keyId(model.getKeyId())
-            .marker(marker)
-            .build();
-    }
-
-    // Update handler
-    static EnableKeyRotationRequest enableKeyRotationRequest(final ResourceModel model) {
+    public EnableKeyRotationRequest enableKeyRotationRequest(final ResourceModel model) {
         return EnableKeyRotationRequest.builder()
-            .keyId(model.getKeyId()).build();
-    }
-
-    static DisableKeyRotationRequest disableKeyRotationRequest(final ResourceModel model) {
-        return DisableKeyRotationRequest.builder()
-            .keyId(model.getKeyId()).build();
-    }
-
-    static UpdateKeyDescriptionRequest updateKeyDescriptionRequest(final ResourceModel model) {
-        return UpdateKeyDescriptionRequest.builder()
             .keyId(model.getKeyId())
-            .description(model.getDescription()).build();
-    }
-
-    static PutKeyPolicyRequest putKeyPolicyRequest(final ResourceModel resourceModel) {
-        return PutKeyPolicyRequest.builder()
-            .keyId(resourceModel.getKeyId())
-            .policyName(DEFAULT_POLICY_NAME)
-            .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
             .build();
     }
 
-    static String translatePolicyInput(
-        final Object policy) { // KeyPolicy could be either String or JSONObject
-        // this is a helper to write policy correctly
-        if (policy instanceof Map) {
-            try {
-                return MAPPER.writeValueAsString(policy);
-            } catch (final JsonProcessingException e) {
-                throw new TerminalException(e);
-            }
-        }
-        return (String) policy;
-    }
-
-    static UntagResourceRequest untagResourceRequest(final String keyId,
-                                                     final Set<Tag> tags) {
-        return UntagResourceRequest.builder()
-            .keyId(keyId)
-            .tagKeys(tags.stream()
-                .map(Tag::tagKey)
-                .collect(Collectors.toSet())
-            ).build();
-    }
-
-    static TagResourceRequest tagResourceRequest(final String keyId,
-                                                 final Collection<Tag> tags) {
-        return TagResourceRequest.builder()
-            .keyId(keyId)
-            .tags(tags).build();
-    }
-
-    // Delete handler
-    static ScheduleKeyDeletionRequest scheduleKeyDeletionRequest(
-        final ResourceModel resourceModel) {
-        return ScheduleKeyDeletionRequest.builder()
-            .keyId(resourceModel.getKeyId())
-            .pendingWindowInDays(resourceModel.getPendingWindowInDays()).build();
-    }
-
-    // List handler
-    static ListKeysRequest listKeysRequest(final String marker) {
-        return ListKeysRequest.builder()
-            .marker(marker)
+    public DisableKeyRotationRequest disableKeyRotationRequest(final ResourceModel model) {
+        return DisableKeyRotationRequest.builder()
+            .keyId(model.getKeyId())
             .build();
     }
 
-    static EnableKeyRequest enableKeyRequest(final ResourceModel model) {
-        return EnableKeyRequest.builder()
-            .keyId(model.getKeyId()).build();
+    @Override
+    public ResourceModel translateKeyListEntry(KeyListEntry keyListEntry) {
+        return ResourceModel.builder().keyId(keyListEntry.keyId()).build();
     }
 
-    static DisableKeyRequest disableKeyRequest(final ResourceModel model) {
-        return DisableKeyRequest.builder()
-            .keyId(model.getKeyId()).build();
-    }
-
-    // Translate tags
-    static Set<Tag> translateTagsToSdk(final Map<String, String> tags) {
-        if (tags == null) {
-            return Collections.emptySet();
-        }
-        return Optional.of(tags.entrySet()).orElse(Collections.emptySet())
-            .stream()
-            .map(tag -> Tag.builder().tagKey(tag.getKey()).tagValue(tag.getValue()).build())
-            .collect(Collectors.toSet());
-    }
-
-    static Set<software.amazon.kms.key.Tag> translateTagsFromSdk(final Collection<Tag> tags) {
+    private Set<software.amazon.kms.key.Tag> translateTagsFromSdk(
+        final Collection<Tag> tags) {
         return Optional.ofNullable(tags).orElse(Collections.emptySet())
             .stream()
             .map(tag -> software.amazon.kms.key.Tag.builder()

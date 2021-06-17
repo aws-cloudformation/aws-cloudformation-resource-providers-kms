@@ -11,6 +11,8 @@ import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 
 
 public class ReadHandler extends BaseHandlerStd {
@@ -18,8 +20,10 @@ public class ReadHandler extends BaseHandlerStd {
         super();
     }
 
-    public ReadHandler(final AliasHelper aliasHelper) {
-        super(aliasHelper);
+    public ReadHandler(final ClientBuilder clientBuilder, final AliasApiHelper aliasApiHelper,
+                       final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                           eventualConsistencyHandlerHelper) {
+        super(clientBuilder, aliasApiHelper, eventualConsistencyHandlerHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -37,7 +41,8 @@ public class ReadHandler extends BaseHandlerStd {
         do {
             request.setNextToken(marker);
             final ProgressEvent<ResourceModel, CallbackContext> listModelsResponse =
-                new ListHandler(this.aliasHelper)
+                new ListHandler(this.clientBuilder, this.aliasApiHelper,
+                    this.eventualConsistencyHandlerHelper)
                     .handleRequest(proxy, request, callbackContext, proxyClient, logger);
 
             final Optional<ResourceModel> targetResourceModel =

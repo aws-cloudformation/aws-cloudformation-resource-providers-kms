@@ -1,16 +1,14 @@
 package software.amazon.kms.key;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Map;
-
-import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 class ConfigurationTest {
-
     @Test
     public void testMergeDuplicateKeys() {
         final ResourceModel model = ResourceModel.builder()
@@ -21,8 +19,6 @@ class ConfigurationTest {
 
         final Map<String, String> tags = configuration.resourceDefinedTags(model);
 
-        assertEquals(ImmutableMap.of("sameKey", "value2"), tags);
-
+        assertThat(tags).isEqualTo(ImmutableMap.of("sameKey", "value2"));
     }
-
 }
