@@ -1,6 +1,8 @@
 {
   "KeyId": "123a45b6-7c89-1011-de1f-21314ghi1j51",
-  "Description": "[Contract Test] Invalid Update With Defaults",
+  "Description": "[Contract Test] Invalid Update",
+  "Enabled": true,
+  "EnableKeyRotation": true,
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -16,5 +18,13 @@
       }
     ]
   },
-  "KeyUsage": "ENCRYPT_DECRYPT_INVALID"
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyUsage": "ENCRYPT_DECRYPT",
+  "PendingWindowInDays": 1,
+  "Tags": [
+    {
+      "Key": "Key",
+      "Value": "Value"
+    }
+  ]
 }

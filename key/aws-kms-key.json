@@ -20,6 +20,7 @@
           "maxLength": 256
         }
       },
+      "additionalProperties": false,
       "required": [
         "Key",
         "Value"
@@ -72,6 +73,11 @@
         "ECC_SECG_P256K1"
       ]
     },
+    "MultiRegion": {
+      "description": "Specifies whether the CMK should be Multi-Region. You can't change the MultiRegion value after the CMK is created.",
+      "type": "boolean",
+      "default": false
+    },
     "PendingWindowInDays": {
       "description": "Specifies the number of days in the waiting period before AWS KMS deletes a CMK that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.",
       "type": "integer",
@@ -113,7 +119,7 @@
       "permissions": [
         "kms:CreateKey",
         "kms:EnableKeyRotation",
-        "kms:EnableKey",
+        "kms:DisableKey",
         "kms:TagResource"
       ]
     },
@@ -146,10 +152,8 @@
     },
     "list": {
       "permissions": [
-        "kms:DescribeKey",
-        "kms:GetKeyPolicy",
-        "kms:GetKeyRotationStatus",
-        "kms:ListResourceTags"
+        "kms:ListKeys",
+        "kms:DescribeKey"
       ]
     }
   }

@@ -1,0 +1,18 @@
+{
+    "typeName": "AWS::KMS::ReplicaKey",
+    "language": "java",
+    "runtime": "java8",
+    "entrypoint": "software.amazon.kms.replicakey.HandlerWrapper::handleRequest",
+    "testEntrypoint": "software.amazon.kms.replicakey.HandlerWrapper::testEntrypoint",
+    "settings": {
+        "namespace": [
+            "software",
+            "amazon",
+            "kms",
+            "replicakey"
+        ],
+        "codegen_template_path": "default",
+        "protocolVersion": "2.0.0"
+    },
+    "executableEntrypoint": "software.amazon.kms.replicakey.HandlerWrapperExecutable"
+}

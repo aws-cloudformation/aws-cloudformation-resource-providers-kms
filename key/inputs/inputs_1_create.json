@@ -1,5 +1,7 @@
 {
-  "Description": "[Contract Test] Create With Defaults",
+  "Description": "[Contract Test] Create",
+  "Enabled": false,
+  "EnableKeyRotation": false,
   "KeyPolicy": {
     "Version": "2012-10-17",
     "Id": "key-default-1",
@@ -14,5 +16,14 @@
         "Resource": "*"
       }
     ]
-  }
+  },
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyUsage": "ENCRYPT_DECRYPT",
+  "PendingWindowInDays": 7,
+  "Tags": [
+    {
+      "Key": "Key",
+      "Value": "Value"
+    }
+  ]
 }

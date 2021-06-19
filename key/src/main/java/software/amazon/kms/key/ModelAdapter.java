@@ -11,6 +11,11 @@ public class ModelAdapter {
     private static final String DEFAULT_KEY_USAGE = KeyUsageType.ENCRYPT_DECRYPT.toString();
     private static final String DEFAULT_KEY_SPEC = CustomerMasterKeySpec.SYMMETRIC_DEFAULT
         .toString();
+    private static final Boolean DEFAULT_MULTI_REGION = false;
+
+    private ModelAdapter() {
+        // Prevent Instantiation
+    }
 
     /**
      * Applies default values to the key resource model.
@@ -25,6 +30,7 @@ public class ModelAdapter {
         final Boolean enabledKeyRotation = model.getEnableKeyRotation();
         final String keyUsage = model.getKeyUsage();
         final String keySpec = model.getKeySpec();
+        final Boolean multiRegion = model.getMultiRegion();
 
         model.setDescription(StringUtils.isNullOrEmpty(description) ? DEFAULT_DESCRIPTION
             : description);
@@ -33,6 +39,7 @@ public class ModelAdapter {
             : enabledKeyRotation);
         model.setKeyUsage(StringUtils.isNullOrEmpty(keyUsage) ? DEFAULT_KEY_USAGE : keyUsage);
         model.setKeySpec(StringUtils.isNullOrEmpty(keySpec) ? DEFAULT_KEY_SPEC : keySpec);
+        model.setMultiRegion(multiRegion == null ? DEFAULT_MULTI_REGION : multiRegion);
         return model;
     }
 
@@ -52,6 +59,7 @@ public class ModelAdapter {
             .keyPolicy(model.getKeyPolicy())
             .keyUsage(model.getKeyUsage())
             .keySpec(model.getKeySpec())
+            .multiRegion(model.getMultiRegion())
             .tags(model.getTags())
             .build();
     }

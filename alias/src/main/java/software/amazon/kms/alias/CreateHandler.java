@@ -6,14 +6,18 @@ import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
+import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 
 public class CreateHandler extends BaseHandlerStd {
     public CreateHandler() {
         super();
     }
 
-    public CreateHandler(final AliasHelper aliasHelper) {
-        super(aliasHelper);
+    public CreateHandler(final ClientBuilder clientBuilder, final AliasApiHelper aliasApiHelper,
+                         final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                             eventualConsistencyHandlerHelper) {
+        super(clientBuilder, aliasApiHelper, eventualConsistencyHandlerHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -29,7 +33,7 @@ public class CreateHandler extends BaseHandlerStd {
             .then(
                 progress -> proxy.initiate("kms::create-alias", proxyClient, model, callbackContext)
                     .translateToServiceRequest(Translator::createAliasRequest)
-                    .makeServiceCall(aliasHelper::createAlias)
+                    .makeServiceCall(aliasApiHelper::createAlias)
                     .done(createAliasResponse -> {
                         logger.log(String
                             .format("%s [%s] has been successfully created",
@@ -38,7 +42,7 @@ public class CreateHandler extends BaseHandlerStd {
 
                         return progress;
                     }))
-            .then(BaseHandlerStd::propagate)
+            .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(model));
     }
 }

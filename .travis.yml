@@ -10,10 +10,8 @@ install:
   - pip3 install --user pre-commit cloudformation-cli-java-plugin
 script:
   - pre-commit run --all-files --verbose
-  - cd "$TRAVIS_BUILD_DIR/alias"
-  - mvn clean verify --no-transfer-progress
-  - cd "$TRAVIS_BUILD_DIR/key"
   - mvn clean verify --no-transfer-progress
 after_failure:
   - cat "$TRAVIS_BUILD_DIR/alias/rpdk.log"
   - cat "$TRAVIS_BUILD_DIR/key/rpdk.log"
+  - cat "$TRAVIS_BUILD_DIR/replicakey/rpdk.log"

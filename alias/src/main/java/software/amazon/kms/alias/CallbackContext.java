@@ -1,11 +1,11 @@
 package software.amazon.kms.alias;
 
-import software.amazon.cloudformation.proxy.StdCallbackContext;
+import software.amazon.kms.common.EventualConsistencyCallbackContext;
 
-@lombok.Getter
-@lombok.Setter
-@lombok.ToString
-@lombok.EqualsAndHashCode(callSuper = true)
-public class CallbackContext extends StdCallbackContext {
-    protected boolean propagated;
+/**
+ * The only context needed for the Alias handlers is the common eventual consistency context.
+ * This class is still required since the CFN java plugin expects it to be here, with this name.
+ */
+public class CallbackContext extends EventualConsistencyCallbackContext {
+
 }
