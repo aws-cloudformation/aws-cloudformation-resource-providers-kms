@@ -1,6 +1,8 @@
 package software.amazon.kms.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.fail;
 import static software.amazon.kms.common.KeyApiHelper.ACCESS_DENIED_ERROR_CODE;
 import static software.amazon.kms.common.KeyApiHelper.THROTTLING_ERROR_CODE;
 import static software.amazon.kms.common.KeyApiHelper.VALIDATION_ERROR_CODE;
@@ -139,5 +141,20 @@ public class AbstractKmsApiHelperTest {
 
         assertThatExceptionOfType(CfnGeneralServiceException.class)
             .isThrownBy(() -> mockKmsApiHelper.testExceptionWrapping(generalKmsException));
+    }
+
+    @Test
+    public void testAddMessageIfNull() {
+        final MalformedPolicyDocumentException malformedPolicyDocumentException = MalformedPolicyDocumentException.builder()
+                .message("null (Service: Kms, Status Code: 400, Request ID: null, Extended Request ID: null)")
+                .build();
+
+        try {
+            mockKmsApiHelper.testExceptionWrapping(malformedPolicyDocumentException);
+            fail("Expected CfnInvalidRequestException");
+        } catch (final CfnInvalidRequestException e) {
+            assertThat(e.getMessage()).isEqualTo("MockOperation failed due to MalformedPolicyDocumentException " +
+                    "(Service: Kms, Status Code: 400, Request ID: null, Extended Request ID: null)");
+        }
     }
 }

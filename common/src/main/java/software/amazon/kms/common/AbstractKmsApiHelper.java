@@ -1,6 +1,9 @@
 package software.amazon.kms.common;
 
 import java.util.function.Supplier;
+
+import com.google.common.base.Strings;
+
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
 import software.amazon.awssdk.services.kms.model.DisabledException;
@@ -40,30 +43,51 @@ public class AbstractKmsApiHelper {
         try {
             return serviceCall.get();
         } catch (final AlreadyExistsException e) {
-            throw new CfnAlreadyExistsException(e);
+            throw new CfnAlreadyExistsException(addMessageIfNull(operation, e));
         } catch (final InvalidAliasNameException | KmsInvalidStateException | InvalidArnException |
             MalformedPolicyDocumentException | TagException | UnsupportedOperationException |
             DisabledException e) {
-            throw new CfnInvalidRequestException(e);
+            throw new CfnInvalidRequestException(addMessageIfNull(operation, e));
         } catch (final LimitExceededException e) {
-            throw new CfnServiceLimitExceededException(e);
+            throw new CfnServiceLimitExceededException(addMessageIfNull(operation, e));
         } catch (final InvalidMarkerException e) {
             // We should never make a call with an invalid marker, if we did, there is an issue
-            throw new CfnInternalFailureException(e);
+            throw new CfnInternalFailureException(addMessageIfNull(operation, e));
         } catch (final KmsInternalException | DependencyTimeoutException e) {
             throw new CfnServiceInternalErrorException(operation, e);
         } catch (final NotFoundException e) {
-            throw new CfnNotFoundException(e);
+            throw new CfnNotFoundException(addMessageIfNull(operation, e));
         } catch (final KmsException e) {
             if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnAccessDeniedException(operation, e);
             } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
-                throw new CfnInvalidRequestException(e);
+                throw new CfnInvalidRequestException(addMessageIfNull(operation, e));
             } else if (THROTTLING_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnThrottlingException(operation, e);
             }
 
             throw new CfnGeneralServiceException(operation, e);
         }
+    }
+
+    /**
+     * Generates exception messages for exceptions that didn't have one.
+     *
+     * @param operation Operation that caused the exception
+     * @param e Exception that occurred
+     * @return Exception
+     */
+    private Exception addMessageIfNull(final String operation, final Exception e) {
+        // CloudFormation users only see the message of an exception that resulted in a failure,
+        // and do not see its type. Some KMS exceptions (Like MalformedPolicyDocumentException)
+        // do not have exception messages, so we need to add one that mentions the exception type and operation.
+        final String defaultExceptionMessage = String.format("%s failed due to %s", operation,
+                e.getClass().getSimpleName());
+        if (!Strings.isNullOrEmpty(e.getMessage()) && e.getMessage().startsWith("null (")) {
+            // Replace 'null', while keeping the request id that the SDK adds on
+            return new Exception(e.getMessage().replaceFirst("null", defaultExceptionMessage), e);
+        }
+
+        return e;
     }
 }
