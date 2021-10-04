@@ -37,6 +37,7 @@ import software.amazon.cloudformation.exceptions.TerminalException;
  */
 public abstract class KeyTranslator<M> {
     protected static final String DEFAULT_POLICY_NAME = "default";
+    protected static final int LIST_KEYS_PAGE_SIZE = 50;
 
     private final ObjectMapper objectMapper;
 
@@ -80,6 +81,7 @@ public abstract class KeyTranslator<M> {
     public ListKeysRequest listKeysRequest(final String marker) {
         return ListKeysRequest.builder()
             .marker(marker)
+            .limit(LIST_KEYS_PAGE_SIZE)
             .build();
     }
 
