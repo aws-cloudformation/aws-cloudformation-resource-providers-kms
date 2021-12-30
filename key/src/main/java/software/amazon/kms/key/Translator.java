@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.DisableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
@@ -50,8 +50,8 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
     }
 
     @Override
-    public CustomerMasterKeySpec getKeySpec(final ResourceModel model) {
-        return CustomerMasterKeySpec.fromValue(model.getKeySpec());
+    public KeySpec getKeySpec(final ResourceModel model) {
+        return KeySpec.fromValue(model.getKeySpec());
     }
 
     @Override
@@ -71,7 +71,7 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
         model.setDescription(keyMetadata.description());
         model.setEnabled(keyMetadata.enabled());
         model.setKeyUsage(keyMetadata.keyUsageAsString());
-        model.setKeySpec(keyMetadata.customerMasterKeySpecAsString());
+        model.setKeySpec(keyMetadata.keySpecAsString());
         model.setMultiRegion(keyMetadata.multiRegion());
     }
 
@@ -83,18 +83,6 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
     @Override
     public void setTags(final ResourceModel model, final Set<Tag> tags) {
         model.setTags(translateTagsFromSdk(tags));
-    }
-
-    public CreateKeyRequest createCustomerMasterKey(final ResourceModel resourceModel,
-                                                    final Map<String, String> tags) {
-        return CreateKeyRequest.builder()
-            .description(resourceModel.getDescription())
-            .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
-            .customerMasterKeySpec(CustomerMasterKeySpec.fromValue(resourceModel.getKeySpec()))
-            .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
-            .multiRegion(resourceModel.getMultiRegion())
-            .tags(translateTagsToSdk(tags))
-            .build();
     }
 
     public GetKeyRotationStatusRequest getKeyRotationStatusRequest(final ResourceModel model) {

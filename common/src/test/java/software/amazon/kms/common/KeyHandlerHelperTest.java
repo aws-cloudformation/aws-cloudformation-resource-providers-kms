@@ -23,7 +23,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
@@ -65,7 +65,7 @@ public class KeyHandlerHelperTest {
     private static final KeyMetadata.Builder KEY_METADATA_BUILDER = KeyMetadata.builder()
         .keyId("mock-key-id")
         .arn("mock-arn")
-        .customerMasterKeySpec(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString())
+        .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
         .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
         .description("mock-description")
         .keyState(KeyState.ENABLED)

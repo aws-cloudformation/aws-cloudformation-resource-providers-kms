@@ -1,7 +1,7 @@
 package software.amazon.kms.key;
 
 import com.amazonaws.util.StringUtils;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 
 public class ModelAdapter {
@@ -9,7 +9,7 @@ public class ModelAdapter {
     private static final Boolean DEFAULT_ENABLED = true;
     private static final Boolean DEFAULT_ENABLE_KEY_ROTATION = false;
     private static final String DEFAULT_KEY_USAGE = KeyUsageType.ENCRYPT_DECRYPT.toString();
-    private static final String DEFAULT_KEY_SPEC = CustomerMasterKeySpec.SYMMETRIC_DEFAULT
+    private static final String DEFAULT_KEY_SPEC = KeySpec.SYMMETRIC_DEFAULT
         .toString();
     private static final Boolean DEFAULT_MULTI_REGION = false;
 

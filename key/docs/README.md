@@ -1,6 +1,6 @@
 # AWS::KMS::Key
 
-The AWS::KMS::Key resource specifies a customer master key (CMK) in AWS Key Management Service (AWS KMS). Authorized users can use the CMK to encrypt and decrypt small amounts of data (up to 4096 bytes), but they are more commonly used to generate data keys. You can also use CMKs to encrypt data stored in AWS services that are integrated with AWS KMS or within their applications.
+The AWS::KMS::Key resource specifies an AWS KMS Key in AWS Key Management Service (AWS KMS). Authorized users can use the AWS KMS Key to encrypt and decrypt small amounts of data (up to 4096 bytes), but they are more commonly used to generate data keys. You can also use AWS KMS Keys to encrypt data stored in AWS services that are integrated with AWS KMS or within their applications.
 
 ## Syntax
 
@@ -46,7 +46,7 @@ Properties:
 
 #### Description
 
-A description of the CMK. Use a description that helps you to distinguish this CMK from others in the account, such as its intended use.
+A description of the AWS KMS Key. Use a description that helps you to distinguish this AWS KMS Key from others in the account, such as its intended use.
 
 _Required_: No
 
@@ -58,7 +58,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### Enabled
 
-Specifies whether the customer master key (CMK) is enabled. Disabled CMKs cannot be used in cryptographic operations.
+Specifies whether the AWS KMS Key is enabled. Disabled AWS KMS Keys cannot be used in cryptographic operations.
 
 _Required_: No
 
@@ -68,7 +68,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### EnableKeyRotation
 
-Enables automatic rotation of the key material for the specified customer master key (CMK). By default, automation key rotation is not enabled.
+Enables automatic rotation of the key material for the specified AWS KMS Key. By default, automation key rotation is not enabled.
 
 _Required_: No
 
@@ -78,7 +78,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### KeyPolicy
 
-The key policy that authorizes use of the CMK. The key policy must observe the following rules.
+The key policy that authorizes use of the AWS KMS Key. The key policy must observe the following rules.
 
 _Required_: Yes
 
@@ -88,7 +88,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### KeyUsage
 
-Determines the cryptographic operations for which you can use the CMK. The default value is ENCRYPT_DECRYPT. This property is required only for asymmetric CMKs. You can't change the KeyUsage value after the CMK is created.
+Determines the cryptographic operations for which you can use the AWS KMS Key. The default value is ENCRYPT_DECRYPT. This property is required only for asymmetric AWS KMS Keys. You can't change the KeyUsage value after the AWS KMS Key is created.
 
 _Required_: No
 
@@ -96,11 +96,11 @@ _Type_: String
 
 _Allowed Values_: <code>ENCRYPT_DECRYPT</code> | <code>SIGN_VERIFY</code>
 
-_Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+_Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
 
 #### KeySpec
 
-Specifies the type of CMK to create. The default value is SYMMETRIC_DEFAULT. This property is required only for asymmetric CMKs. You can't change the KeySpec value after the CMK is created.
+Specifies the type of AWS KMS Key to create. The default value is SYMMETRIC_DEFAULT. This property is required only for asymmetric AWS KMS Keys. You can't change the KeySpec value after the AWS KMS Key is created.
 
 _Required_: No
 
@@ -108,21 +108,21 @@ _Type_: String
 
 _Allowed Values_: <code>SYMMETRIC_DEFAULT</code> | <code>RSA_2048</code> | <code>RSA_3072</code> | <code>RSA_4096</code> | <code>ECC_NIST_P256</code> | <code>ECC_NIST_P384</code> | <code>ECC_NIST_P521</code> | <code>ECC_SECG_P256K1</code>
 
-_Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+_Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
 
 #### MultiRegion
 
-Specifies whether the CMK should be Multi-Region. You can't change the MultiRegion value after the CMK is created.
+Specifies whether the AWS KMS Key should be Multi-Region. You can't change the MultiRegion value after the AWS KMS Key is created.
 
 _Required_: No
 
 _Type_: Boolean
 
-_Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+_Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
 
 #### PendingWindowInDays
 
-Specifies the number of days in the waiting period before AWS KMS deletes a CMK that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.
+Specifies the number of days in the waiting period before AWS KMS deletes a AWS KMS Key that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.
 
 _Required_: No
 
@@ -159,3 +159,4 @@ Returns the <code>Arn</code> value.
 #### KeyId
 
 Returns the <code>KeyId</code> value.
+
