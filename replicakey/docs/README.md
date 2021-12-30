@@ -1,6 +1,6 @@
 # AWS::KMS::ReplicaKey
 
-The AWS::KMS::ReplicaKey resource specifies a multi-region replica AWS KMS Key in AWS Key Management Service (AWS KMS).
+The AWS::KMS::ReplicaKey resource specifies a multi-region replica AWS KMS key in AWS Key Management Service (AWS KMS).
 
 ## Syntax
 
@@ -40,7 +40,7 @@ Properties:
 
 #### PrimaryKeyArn
 
-Identifies the primary AWS KMS Key to create a replica of. Specify the Amazon Resource Name (ARN) of the AWS KMS Key. You cannot specify an alias or key ID. For help finding the ARN, see Finding the Key ID and ARN in the AWS Key Management Service Developer Guide.
+Identifies the primary AWS KMS key to create a replica of. Specify the Amazon Resource Name (ARN) of the AWS KMS key. You cannot specify an alias or key ID. For help finding the ARN, see Finding the Key ID and ARN in the AWS Key Management Service Developer Guide.
 
 _Required_: Yes
 
@@ -54,7 +54,7 @@ _Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/l
 
 #### Description
 
-A description of the AWS KMS Key. Use a description that helps you to distinguish this AWS KMS Key from others in the account, such as its intended use.
+A description of the AWS KMS key. Use a description that helps you to distinguish this AWS KMS key from others in the account, such as its intended use.
 
 _Required_: No
 
@@ -66,7 +66,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### Enabled
 
-Specifies whether the AWS KMS Key is enabled. Disabled AWS KMS Keys cannot be used in cryptographic operations.
+Specifies whether the AWS KMS key is enabled. Disabled AWS KMS keys cannot be used in cryptographic operations.
 
 _Required_: No
 
@@ -76,7 +76,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### KeyPolicy
 
-The key policy that authorizes use of the AWS KMS Key. The key policy must observe the following rules.
+The key policy that authorizes use of the AWS KMS key. The key policy must observe the following rules.
 
 _Required_: Yes
 
@@ -86,7 +86,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### PendingWindowInDays
 
-Specifies the number of days in the waiting period before AWS KMS deletes an AWS KMS Key that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.
+Specifies the number of days in the waiting period before AWS KMS deletes an AWS KMS key that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.
 
 _Required_: No
 
