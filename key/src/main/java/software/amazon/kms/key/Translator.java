@@ -85,6 +85,18 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
         model.setTags(translateTagsFromSdk(tags));
     }
 
+    public CreateKeyRequest createAWSKMSKey(final ResourceModel resourceModel,
+                                                    final Map<String, String> tags) {
+        return CreateKeyRequest.builder()
+            .description(resourceModel.getDescription())
+            .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
+            .keySpec(KeySpec.fromValue(resourceModel.getKeySpec()))
+            .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
+            .multiRegion(resourceModel.getMultiRegion())
+            .tags(translateTagsToSdk(tags))
+            .build();
+    }
+
     public GetKeyRotationStatusRequest getKeyRotationStatusRequest(final ResourceModel model) {
         return GetKeyRotationStatusRequest.builder()
             .keyId(model.getKeyId())

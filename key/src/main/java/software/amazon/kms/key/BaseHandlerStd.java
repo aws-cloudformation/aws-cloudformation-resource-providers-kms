@@ -121,7 +121,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         final ResourceModel model) {
         // If the key is asymmetric, we cannot enable key rotation
         if (!Objects
-                .equals(model.getKeySpec(), KeySpec.SYMMETRIC_DEFAULT.toString())
+            .equals(model.getKeySpec(), KeySpec.SYMMETRIC_DEFAULT.toString())
             && model.getEnableKeyRotation()) {
             throw new CfnInvalidRequestException(
                 "You cannot set the EnableKeyRotation property to true on asymmetric keys.");
