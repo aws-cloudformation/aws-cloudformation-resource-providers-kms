@@ -17,7 +17,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -43,7 +43,7 @@ public class UpdateHandlerTest {
             .enableKeyRotation(false)
             .multiRegion(false)
             .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
-            .keySpec(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString())
+            .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
             .keyPolicy(TestConstants.DESERIALIZED_KEY_POLICY)
             .tags(ImmutableSet.of(Tag.builder()
                 .key("Key")

@@ -21,7 +21,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
@@ -56,14 +56,14 @@ public class CreateHandlerTest {
         .description("")
         .enabled(true)
         .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
-        .keySpec(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString())
+        .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
         .multiRegion(false)
         .build();
     private static final ResourceModel KEY_MODEL_REDACTED = KEY_MODEL_BUILDER
         .pendingWindowInDays(null)
         .build();
     private static final ResourceModel KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED = KEY_MODEL_BUILDER
-        .keySpec(CustomerMasterKeySpec.RSA_4096.toString())
+        .keySpec(KeySpec.RSA_4096.toString())
         .build();
 
     @Mock
