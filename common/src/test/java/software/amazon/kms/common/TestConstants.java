@@ -32,6 +32,9 @@ public class TestConstants {
     public static final Map<String, String> TAGS = new ImmutableMap.Builder<String, String>()
         .put("Key1", "Value1")
         .build();
+    public static final Map<String, String> PREVIOUS_TAGS = new ImmutableMap.Builder<String, String>()
+            .put("Key2", "Value2")
+            .build();
     public static final Set<Tag> SDK_TAGS = new ImmutableSet.Builder<Tag>()
         .add(Tag.builder().tagKey("Key1").tagValue("Value1").build())
         .build();
