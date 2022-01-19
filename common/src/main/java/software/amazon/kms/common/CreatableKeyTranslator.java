@@ -3,7 +3,7 @@ package software.amazon.kms.common;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 
@@ -24,7 +24,7 @@ public abstract class CreatableKeyTranslator<M> extends KeyTranslator<M> {
 
     public abstract KeyUsageType getKeyUsage(final M model);
 
-    public abstract CustomerMasterKeySpec getKeySpec(final M model);
+    public abstract KeySpec getKeySpec(final M model);
 
     public abstract Boolean isMultiRegion(final M model);
 
@@ -34,7 +34,7 @@ public abstract class CreatableKeyTranslator<M> extends KeyTranslator<M> {
         return CreateKeyRequest.builder()
             .description(getKeyDescription(model))
             .keyUsage(getKeyUsage(model))
-            .customerMasterKeySpec(getKeySpec(model))
+            .keySpec(getKeySpec(model))
             .policy(translatePolicyInput(getKeyPolicy(model)))
             .multiRegion(isMultiRegion(model))
             .tags(translateTagsToSdk(tags))

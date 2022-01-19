@@ -18,7 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.CreateKeyResponse;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
@@ -32,7 +32,7 @@ public class CreatableKeyHandlerHelperTest {
     private static final KeyMetadata KEY_METADATA = KeyMetadata.builder()
         .keyId("mock-key-id")
         .arn("mock-arn")
-        .customerMasterKeySpec(CustomerMasterKeySpec.SYMMETRIC_DEFAULT.toString())
+        .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
         .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
         .description("mock-description")
         .keyState(KeyState.ENABLED)

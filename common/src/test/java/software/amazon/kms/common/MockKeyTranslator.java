@@ -2,7 +2,7 @@ package software.amazon.kms.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Set;
-import software.amazon.awssdk.services.kms.model.CustomerMasterKeySpec;
+import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyListEntry;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
@@ -52,8 +52,8 @@ public class MockKeyTranslator extends CreatableKeyTranslator<Object> {
     }
 
     @Override
-    public CustomerMasterKeySpec getKeySpec(final Object model) {
-        return CustomerMasterKeySpec.SYMMETRIC_DEFAULT;
+    public KeySpec getKeySpec(final Object model) {
+        return KeySpec.SYMMETRIC_DEFAULT;
     }
 
     @Override
