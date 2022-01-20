@@ -5,6 +5,7 @@ import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
 
 import java.util.Map;
+import java.util.Objects;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
@@ -58,9 +59,18 @@ public class UpdateHandler extends BaseHandlerStd {
                 .updateKeyDescription(proxy, proxyClient, previousModel, model, callbackContext))
             .then(progress -> keyHandlerHelper
                 .updateKeyPolicy(proxy, proxyClient, previousModel, model, callbackContext))
-            .then(progress -> softFailAccessDenied(() -> keyHandlerHelper
-                .updateKeyTags(proxy, proxyClient, model, tags, callbackContext),
-                model, callbackContext))
+            .then(progress -> {
+                if (!Objects.equals(tags, request.getPreviousResourceTags())) {
+                    // Customer is attempting to change tags, no soft fail
+                    return keyHandlerHelper
+                        .updateKeyTags(proxy, proxyClient, model, tags, callbackContext);
+                } else {
+                    // Customer did not explicitly request a tag update, fixing the drift
+                    return softFailAccessDenied(() -> keyHandlerHelper
+                        .updateKeyTags(proxy, proxyClient, model, tags, callbackContext),
+                            model, callbackContext);
+                }
+            })
             .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(model)));
     }

@@ -1,7 +1,9 @@
 package software.amazon.kms.key;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -132,6 +134,7 @@ public class UpdateHandlerTest {
                 .previousResourceState(KEY_MODEL_PREVIOUS)
                 .desiredResourceState(KEY_MODEL)
                 .desiredResourceTags(TestConstants.TAGS)
+                .previousResourceTags(TestConstants.PREVIOUS_TAGS)
                 .build();
 
         // Execute the update handler and make sure it returns the expected results
@@ -167,7 +170,7 @@ public class UpdateHandlerTest {
     }
 
     @Test
-    public void handleRequest_SoftFailAccessDenied() {
+    public void handleRequest_TagUpdateAccessDenied() {
         // Mock out delegation to our helpers and make them return an IN_PROGRESS event
         final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
             ProgressEvent.progress(KEY_MODEL, callbackContext);
@@ -191,10 +194,7 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext)))
             .thenReturn(inProgressEvent);
-        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
-            .thenReturn(inProgressEvent);
-
-        // Throw a CfnAccessDeniedException from updateKeyTags so we can test that it is soft failed
+        // Throw CfnAccessDeniedException to mock no kms:TagResource permission
         when(keyHandlerHelper
             .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
                 eq(callbackContext)))
@@ -206,9 +206,83 @@ public class UpdateHandlerTest {
                 .previousResourceState(KEY_MODEL_PREVIOUS)
                 .desiredResourceState(KEY_MODEL)
                 .desiredResourceTags(TestConstants.TAGS)
+                .previousResourceTags(TestConstants.PREVIOUS_TAGS)
                 .build();
 
-        // Execute the update handler, our soft failing should ignore the CfnAccessDeniedException
+        assertThatExceptionOfType(CfnAccessDeniedException.class).isThrownBy(() ->
+                handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER));
+
+        // Make sure we called our helpers with the correct parameters and the propagation fails at updateKeyTags
+        verify(keyHandlerHelper)
+            .describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+                eq(false));
+        verify(keyHandlerHelper)
+            .enableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS),
+                eq(KEY_MODEL), eq(callbackContext), eq(true));
+        verify(keyHandlerHelper)
+            .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS),
+                eq(KEY_MODEL), eq(callbackContext));
+        verify(keyHandlerHelper)
+            .updateKeyDescription(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS),
+                eq(KEY_MODEL), eq(callbackContext));
+        verify(keyHandlerHelper)
+            .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
+                eq(callbackContext));
+        verify(keyHandlerHelper)
+            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
+                eq(callbackContext));
+        verify(eventualConsistencyHandlerHelper, times(0)).waitForChangesToPropagate(eq(inProgressEvent));
+
+        // We shouldn't call anything else
+        verifyZeroInteractions(keyApiHelper);
+        verifyNoMoreInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_SoftFailSucess() {
+        // Mock out delegation to our helpers and make them return an IN_PROGRESS event
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+            ProgressEvent.progress(KEY_MODEL, callbackContext);
+        when(keyHandlerHelper
+            .describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+                eq(false)))
+            .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+            .enableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS),
+                eq(KEY_MODEL), eq(callbackContext), eq(true)))
+            .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+            .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS),
+                eq(KEY_MODEL), eq(callbackContext)))
+            .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+            .updateKeyDescription(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS),
+                eq(KEY_MODEL), eq(callbackContext)))
+            .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+            .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
+                eq(callbackContext)))
+            .thenReturn(inProgressEvent);
+        // Throw CfnAccessDeniedException to mock no kms:TagResource permission
+        when(keyHandlerHelper
+            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
+                eq(callbackContext)))
+            .thenThrow(CfnAccessDeniedException.class);
+         when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+             .thenReturn(inProgressEvent);
+
+
+        // Set up our request
+        final ResourceHandlerRequest<ResourceModel> request =
+            ResourceHandlerRequest.<ResourceModel>builder()
+                .previousResourceState(KEY_MODEL_PREVIOUS)
+                .desiredResourceState(KEY_MODEL)
+                .desiredResourceTags(TestConstants.TAGS)
+                .previousResourceTags(TestConstants.TAGS)
+                .build();
+
+        // Execute the update handler and make sure it returns the expected results
         assertThat(handler
             .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
             .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_REDACTED));
