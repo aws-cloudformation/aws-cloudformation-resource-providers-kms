@@ -200,6 +200,7 @@ public class UpdateHandlerTest {
                 eq(callbackContext)))
             .thenThrow(CfnAccessDeniedException.class);
 
+
         // Set up our request
         final ResourceHandlerRequest<ResourceModel> request =
             ResourceHandlerRequest.<ResourceModel>builder()
@@ -235,6 +236,8 @@ public class UpdateHandlerTest {
         verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
 
         // We shouldn't call anything else
+
+
         verifyZeroInteractions(keyApiHelper);
         verifyNoMoreInteractions(keyHandlerHelper);
         verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
