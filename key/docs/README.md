@@ -94,7 +94,7 @@ _Required_: No
 
 _Type_: String
 
-_Allowed Values_: <code>ENCRYPT_DECRYPT</code> | <code>SIGN_VERIFY</code>
+_Allowed Values_: <code>ENCRYPT_DECRYPT</code> | <code>SIGN_VERIFY</code> | <code>GENERATE_VERIFY_MAC</code>
 
 _Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
 
@@ -106,7 +106,7 @@ _Required_: No
 
 _Type_: String
 
-_Allowed Values_: <code>SYMMETRIC_DEFAULT</code> | <code>RSA_2048</code> | <code>RSA_3072</code> | <code>RSA_4096</code> | <code>ECC_NIST_P256</code> | <code>ECC_NIST_P384</code> | <code>ECC_NIST_P521</code> | <code>ECC_SECG_P256K1</code>
+_Allowed Values_: <code>SYMMETRIC_DEFAULT</code> | <code>RSA_2048</code> | <code>RSA_3072</code> | <code>RSA_4096</code> | <code>ECC_NIST_P256</code> | <code>ECC_NIST_P384</code> | <code>ECC_NIST_P521</code> | <code>ECC_SECG_P256K1</code> | <code>HMAC_224</code> | <code>HMAC_256</code> | <code>HMAC_384</code> | <code>HMAC_512</code>
 
 _Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
 
@@ -159,3 +159,4 @@ Returns the <code>Arn</code> value.
 #### KeyId
 
 Returns the <code>KeyId</code> value.
+
