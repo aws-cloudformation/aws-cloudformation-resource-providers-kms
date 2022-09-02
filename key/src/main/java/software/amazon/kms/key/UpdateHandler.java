@@ -5,7 +5,6 @@ import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
 
 import java.util.Map;
-import java.util.Objects;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
@@ -17,6 +16,7 @@ import software.amazon.kms.common.CreatableKeyHandlerHelper;
 import software.amazon.kms.common.CreatableKeyTranslator;
 import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
+import software.amazon.kms.common.TagHelper;
 
 public class UpdateHandler extends BaseHandlerStd {
     public UpdateHandler() {
@@ -28,9 +28,10 @@ public class UpdateHandler extends BaseHandlerStd {
                          final KeyApiHelper keyApiHelper,
                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
                              eventualConsistencyHandlerHelper,
-                         final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper) {
+                         final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper,
+                         final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper) {
         super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
-            keyHandlerHelper);
+                keyHandlerHelper, tagHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -41,7 +42,7 @@ public class UpdateHandler extends BaseHandlerStd {
         final Logger logger) {
         final ResourceModel model = setDefaults(request.getDesiredResourceState());
         final ResourceModel previousModel = setDefaults(request.getPreviousResourceState());
-        final Map<String, String> tags = request.getDesiredResourceTags();
+        final Map<String, String> tags = tagHelper.getNewDesiredTags(request);
 
         return ProgressEvent.progress(model, callbackContext)
             // Describe the key (without updating the model) to verify that it has not been deleted
@@ -60,14 +61,13 @@ public class UpdateHandler extends BaseHandlerStd {
             .then(progress -> keyHandlerHelper
                 .updateKeyPolicy(proxy, proxyClient, previousModel, model, callbackContext))
             .then(progress -> {
-                if (!Objects.equals(tags, request.getPreviousResourceTags())) {
+                if (tagHelper.shouldUpdateTags(request)) {
                     // Customer is attempting to change tags, no soft fail
-                    return keyHandlerHelper
-                        .updateKeyTags(proxy, proxyClient, model, tags, callbackContext);
+                    return tagHelper.updateKeyTags(proxy, proxyClient, model, request, callbackContext, tags);
                 } else {
                     // Customer did not explicitly request a tag update, fixing the drift
-                    return softFailAccessDenied(() -> keyHandlerHelper
-                        .updateKeyTags(proxy, proxyClient, model, tags, callbackContext),
+                    return softFailAccessDenied(() -> tagHelper
+                        .updateKeyTags(proxy, proxyClient, model, request, callbackContext, tags),
                             model, callbackContext);
                 }
             })

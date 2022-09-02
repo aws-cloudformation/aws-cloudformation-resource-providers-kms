@@ -11,6 +11,7 @@ import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
 import software.amazon.kms.common.KeyHandlerHelper;
 import software.amazon.kms.common.KeyTranslator;
+import software.amazon.kms.common.TagHelper;
 
 public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
     final ClientBuilder clientBuilder;
@@ -20,6 +21,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         eventualConsistencyHandlerHelper;
     final KeyHandlerHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>>
         keyHandlerHelper;
+    final TagHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> tagHelper;
 
     public BaseHandlerStd() {
         this.clientBuilder = new ClientBuilder();
@@ -29,6 +31,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         this.keyHandlerHelper =
             new KeyHandlerHelper<>(ResourceModel.TYPE_NAME, keyApiHelper,
                 eventualConsistencyHandlerHelper, translator);
+        this.tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
     }
 
     public BaseHandlerStd(final ClientBuilder clientBuilder,
@@ -43,6 +46,22 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         this.keyApiHelper = keyApiHelper;
         this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
         this.keyHandlerHelper = keyHandlerHelper;
+        this.tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
+    }
+
+    public BaseHandlerStd(final ClientBuilder clientBuilder,
+                         final Translator translator,
+                         final KeyApiHelper keyApiHelper,
+                         final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                             eventualConsistencyHandlerHelper,
+                         final KeyHandlerHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> keyHandlerHelper,
+                         final TagHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> tagHelper) {
+        this.clientBuilder = clientBuilder;
+        this.translator = translator;
+        this.keyApiHelper = keyApiHelper;
+        this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
+        this.keyHandlerHelper = keyHandlerHelper;
+        this.tagHelper = tagHelper;
     }
 
     @Override

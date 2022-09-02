@@ -17,6 +17,7 @@ import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
 import software.amazon.kms.common.KeyHandlerHelper;
 import software.amazon.kms.common.KeyTranslator;
+import software.amazon.kms.common.TagHelper;
 
 public class UpdateHandler extends BaseHandlerStd {
     public UpdateHandler() {
@@ -28,9 +29,10 @@ public class UpdateHandler extends BaseHandlerStd {
                          final KeyApiHelper keyApiHelper,
                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
                              eventualConsistencyHandlerHelper,
-                         final KeyHandlerHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> keyHandlerHelper) {
+                         final KeyHandlerHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> keyHandlerHelper,
+                         final TagHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> tagHelper) {
         super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
-            keyHandlerHelper);
+            keyHandlerHelper, tagHelper);
     }
 
     @Override
@@ -42,7 +44,7 @@ public class UpdateHandler extends BaseHandlerStd {
         final Logger logger) {
         final ResourceModel model = setDefaults(request.getDesiredResourceState());
         final ResourceModel previousModel = setDefaults(request.getPreviousResourceState());
-        final Map<String, String> tags = request.getDesiredResourceTags();
+        final Map<String, String> tags = tagHelper.getNewDesiredTags(request);
 
         return ProgressEvent.progress(model, callbackContext)
             // Describe the key (without updating the model) to verify that it has not been deleted
@@ -58,8 +60,8 @@ public class UpdateHandler extends BaseHandlerStd {
                 .updateKeyDescription(proxy, proxyClient, previousModel, model, callbackContext))
             .then(progress -> keyHandlerHelper
                 .updateKeyPolicy(proxy, proxyClient, previousModel, model, callbackContext))
-            .then(progress -> keyHandlerHelper
-                .updateKeyTags(proxy, proxyClient, model, tags, callbackContext))
+            .then(progress -> tagHelper
+                .updateKeyTags(proxy, proxyClient, model, request, callbackContext, tags))
             .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(model)));
     }

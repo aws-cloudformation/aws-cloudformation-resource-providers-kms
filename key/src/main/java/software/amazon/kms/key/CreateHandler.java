@@ -15,6 +15,7 @@ import software.amazon.kms.common.CreatableKeyHandlerHelper;
 import software.amazon.kms.common.CreatableKeyTranslator;
 import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
+import software.amazon.kms.common.TagHelper;
 
 public class CreateHandler extends BaseHandlerStd {
     public CreateHandler() {
@@ -26,9 +27,10 @@ public class CreateHandler extends BaseHandlerStd {
                          final KeyApiHelper keyApiHelper,
                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
                              eventualConsistencyHandlerHelper,
-                         final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper) {
+                         final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper,
+                         final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper) {
         super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
-            keyHandlerHelper);
+            keyHandlerHelper, tagHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -42,7 +44,7 @@ public class CreateHandler extends BaseHandlerStd {
         return ProgressEvent.progress(model, callbackContext)
             .then(progress -> validateResourceModel(progress, null, model))
             .then(progress -> keyHandlerHelper.createKey(proxy, proxyClient, model, callbackContext,
-                request.getDesiredResourceTags()))
+                    tagHelper.generateTagsForCreate(request)))
             .then(progress -> updateKeyRotationStatus(proxy, proxyClient, null, model,
                 callbackContext))
             .then(progress -> keyHandlerHelper

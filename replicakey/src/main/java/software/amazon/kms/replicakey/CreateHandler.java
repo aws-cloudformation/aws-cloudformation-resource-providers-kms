@@ -20,6 +20,7 @@ import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
 import software.amazon.kms.common.KeyHandlerHelper;
 import software.amazon.kms.common.KeyTranslator;
+import software.amazon.kms.common.TagHelper;
 
 public class CreateHandler extends BaseHandlerStd {
     private static final BiFunction<ResourceModel, ProxyClient<KmsClient>, ResourceModel>
@@ -34,9 +35,10 @@ public class CreateHandler extends BaseHandlerStd {
                          final KeyApiHelper keyApiHelper,
                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
                              eventualConsistencyHandlerHelper,
-                         final KeyHandlerHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> keyHandlerHelper) {
+                         final KeyHandlerHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> keyHandlerHelper,
+                         final TagHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> tagHelper) {
         super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
-            keyHandlerHelper);
+            keyHandlerHelper, tagHelper);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -57,7 +59,7 @@ public class CreateHandler extends BaseHandlerStd {
                         .initiate("kms::replicate-key", primaryRegionClient, model, callbackContext)
                         .translateToServiceRequest(
                             m -> translator.replicateKeyRequest(m, request.getRegion(),
-                                request.getDesiredResourceTags()))
+                                tagHelper.generateTagsForCreate(request)))
                         .makeServiceCall(keyApiHelper::replicateKey)
                         .done(replicateKeyResponse -> {
                             // Continue along if we have already saved the replica key Id
