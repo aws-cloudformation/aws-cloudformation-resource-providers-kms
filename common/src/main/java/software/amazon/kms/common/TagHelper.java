@@ -58,10 +58,15 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
     public final Map<String, String>  generateTagsForCreate(final ResourceHandlerRequest<M> handlerRequest) {
         final Map<String, String> tagMap = new HashMap<>();
 
+        // merge system tags with desired resource tags if your service supports CloudFormation system tags
+        // KMS does not support system tags currently.
+        // tagMap.putAll(handlerRequest.getSystemTags());
         if (handlerRequest.getDesiredResourceTags() != null) {
             tagMap.putAll(handlerRequest.getDesiredResourceTags());
         }
-
+        // TODO: get tags from resource model based on your tag property name.
+        // TODO: tagMap.putAll(convertToMap(resourceModel.getTags()));
+        // getDesiredResourceTags() gets both resource and stack level tags. getTags() gets resource level tags only.
         return Collections.unmodifiableMap(tagMap);
     }
 
@@ -88,7 +93,9 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
         // get previous stack level tags from handlerRequest
         final Map<String, String> previousTags = handlerRequest.getPreviousResourceTags() != null ?
                 handlerRequest.getPreviousResourceTags() : Collections.emptyMap();
-
+        // TODO: get resource level tags from previous resource state based on your tag property name
+        // TODO: previousTags.putAll(handlerRequest.getPreviousResourceState().getTags());
+        // getDesiredResourceTags() gets both resource and stack level tags. getTags() gets resource level tags only.
         return previousTags;
     }
 
@@ -102,6 +109,10 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
         // get new stack level tags from handlerRequest
         final Map<String, String> desiredTags = handlerRequest.getDesiredResourceTags() != null ?
                 handlerRequest.getDesiredResourceTags() : Collections.emptyMap();
+
+        // TODO: get resource level tags from resource model based on your tag property name
+        // TODO: desiredTags.putAll(convertToMap(resourceModel.getTags()));
+        // getDesiredResourceTags() gets both resource and stack level tags. getTags() gets resource level tags only.
         return desiredTags;
 
     }
