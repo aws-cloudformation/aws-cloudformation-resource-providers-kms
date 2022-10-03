@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -59,6 +60,11 @@ public class UpdateHandlerTest {
     private static final ResourceModel KEY_MODEL_PREVIOUS = KEY_MODEL_BUILDER
         .enabled(false)
         .build();
+    private static final ResourceModel KEY_MODEL_PREVIOUS_IMMUTABLE = KEY_MODEL_BUILDER
+            .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
+            .keySpec(KeySpec.RSA_2048.toString())
+            .multiRegion(true)
+            .build();
 
     @Mock
     KmsClient kms;
@@ -312,5 +318,33 @@ public class UpdateHandlerTest {
         verifyZeroInteractions(keyApiHelper);
         verifyNoMoreInteractions(keyHandlerHelper);
         verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_InvalidResourceModel() {
+        // Mock out delegation to our helpers and make them return an IN_PROGRESS event
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL, callbackContext);
+        when(keyHandlerHelper.describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+                eq(false))).thenReturn(inProgressEvent);
+
+        // Set up our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder().previousResourceState(KEY_MODEL_PREVIOUS_IMMUTABLE)
+                        .desiredResourceState(KEY_MODEL).desiredResourceTags(TestConstants.TAGS)
+                        .previousResourceTags(TestConstants.PREVIOUS_TAGS).build();
+
+        // Execute the update handler and make sure it returns the expected results
+        assertThatExceptionOfType(CfnInvalidRequestException.class).isThrownBy(() -> handler
+                .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER));
+
+        // Make sure we called our helpers with the correct parameters and did the final propagation
+        verify(keyHandlerHelper).describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+                eq(false));
+
+        // We shouldn't call anything else
+        verifyZeroInteractions(keyApiHelper);
+        verifyNoMoreInteractions(keyHandlerHelper);
+        verifyZeroInteractions(eventualConsistencyHandlerHelper);
     }
 }

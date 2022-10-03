@@ -112,6 +112,9 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         }
     }
 
+    public static final String CFN_INVALID_REQUEST_MESSAGE = "You cannot change the values of the KeySpec, "
+            + "KeyUsage, or MultiRegion properties of an AWS::KMS::Key resource.";
+
     /**
      * A helper method for validating that the requested resource model transition is possible.
      */
@@ -138,12 +141,11 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             }
 
             // If the key usage or spec or multi-region value changes,
-            // we need to trigger re-creation
+            // The update fails, CfnInvalidRequestException is thrown
             if (!Objects.equals(previousModel.getKeyUsage(), model.getKeyUsage())
                 || !Objects.equals(previousModel.getKeySpec(), model.getKeySpec())
                 || !Objects.equals(previousModel.getMultiRegion(), model.getMultiRegion())) {
-                throw new CfnNotUpdatableException(ResourceModel.TYPE_NAME,
-                    Objects.toString(model.getKeyId()));
+                throw new CfnInvalidRequestException(CFN_INVALID_REQUEST_MESSAGE);
             }
         }
 
