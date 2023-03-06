@@ -115,7 +115,6 @@
                         <exclude>**/HandlerWrapper*</exclude>
                         <exclude>**/ResourceModel*</exclude>
                         <exclude>**/Configuration*</exclude>
-                        <exclude>**/TagHelper*</exclude>
                     </excludes>
                 </configuration>
                 <executions>

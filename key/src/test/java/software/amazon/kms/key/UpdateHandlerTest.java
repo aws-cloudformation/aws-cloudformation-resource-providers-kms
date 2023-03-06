@@ -186,7 +186,6 @@ public class UpdateHandlerTest {
         // We shouldn't call anything else
         verifyZeroInteractions(keyApiHelper);
         verifyNoMoreInteractions(keyHandlerHelper);
-        //        verifyNoMoreInteractions(translator);
         verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
     }
 

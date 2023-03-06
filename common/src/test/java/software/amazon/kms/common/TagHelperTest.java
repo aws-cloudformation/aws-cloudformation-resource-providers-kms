@@ -6,11 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,8 +29,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,14 +76,22 @@ public class TagHelperTest {
     @Test
     public  void testConvertToSet() {
         final Map<String, String> tagMap = TestConstants.TAGS;
-        assertThat(tagHelper.convertToSet(tagMap)).
+        assertThat(TagHelper.convertToSet(tagMap)).
             isEqualTo(TestConstants.SDK_TAGS);
+    }
+
+    @Test
+    public  void testConvertToSetFiltersNullValues() {
+        final Map<String, String> tagMap = new HashMap<>();
+        tagMap.put(TestConstants.MOCK_TYPE_NAME, null);
+        assertThat(TagHelper.convertToSet(tagMap)).
+            isEqualTo(Collections.emptySet());
     }
 
     @Test
     public void testConvertToSetEmpty() {
     final Map<String, String> tagMap = new HashMap<>();
-    assertThat(tagHelper.convertToSet(tagMap))
+    assertThat(TagHelper.convertToSet(tagMap))
             .isEqualTo(Collections.emptySet());
     }
 
@@ -133,13 +137,43 @@ public class TagHelperTest {
     }
 
     @Test
-    public void testGetPreviouslyAttachedTagsTest() {
+    public void testGetPreviouslyAttachedTags() {
         final ResourceHandlerRequest<Object> request =
             ResourceHandlerRequest.<Object>builder()
                 .previousResourceTags(TestConstants.PREVIOUS_TAGS)
                 .build();
         assertThat(tagHelper.getPreviouslyAttachedTags(request))
             .isEqualTo(TestConstants.PREVIOUS_TAGS);
+    }
+
+    @Test
+    public void testGetPreviouslyAttachedTagsNull() {
+        final ResourceHandlerRequest<Object> request =
+            ResourceHandlerRequest.<Object>builder()
+                .previousResourceTags(null)
+                .build();
+        assertThat(tagHelper.getPreviouslyAttachedTags(request))
+            .isEqualTo(Collections.emptyMap());
+    }
+
+    @Test
+    public void testGetNewDesiredTags() {
+        final ResourceHandlerRequest<Object> request =
+            ResourceHandlerRequest.<Object>builder()
+                .desiredResourceTags(TestConstants.TAGS)
+                .build();
+        assertThat(tagHelper.getNewDesiredTags(request))
+            .isEqualTo(TestConstants.TAGS);
+    }
+
+    @Test
+    public void testGetNewDesiredTagsNull() {
+        final ResourceHandlerRequest<Object> request =
+            ResourceHandlerRequest.<Object>builder()
+                .desiredResourceTags(null)
+                .build();
+        assertThat(tagHelper.getNewDesiredTags(request))
+            .isEqualTo(Collections.emptyMap());
     }
 
     @Test

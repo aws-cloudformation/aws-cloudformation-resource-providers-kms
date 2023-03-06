@@ -35,7 +35,6 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
      *
      * Converts a tag map to a set of Tag objects.
      * Note: Like convertToMap, convertToSet filters out value-less tag entries.
-     *
      */
     public static Set<Tag> convertToSet(final Map<String, String> tagMap) {
         if (MapUtils.isEmpty(tagMap)) {
@@ -58,15 +57,11 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
     public final Map<String, String>  generateTagsForCreate(final ResourceHandlerRequest<M> handlerRequest) {
         final Map<String, String> tagMap = new HashMap<>();
 
-        // merge system tags with desired resource tags if your service supports CloudFormation system tags
-        // KMS does not support system tags currently.
-        // tagMap.putAll(handlerRequest.getSystemTags());
+        // KMS does not support system tags currently, so we will not merge them in.
         if (handlerRequest.getDesiredResourceTags() != null) {
             tagMap.putAll(handlerRequest.getDesiredResourceTags());
         }
-        // TODO: get tags from resource model based on your tag property name.
-        // TODO: tagMap.putAll(convertToMap(resourceModel.getTags()));
-        // getDesiredResourceTags() gets both resource and stack level tags. getTags() gets resource level tags only.
+
         return Collections.unmodifiableMap(tagMap);
     }
 
@@ -85,42 +80,28 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
     /**
      * getPreviouslyAttachedTags
      *
-     * If stack tags and resource tags are not merged together in Configuration class,
-     * we will get previous attached user defined tags from both handlerRequest.getPreviousResourceTags (stack tags)
-     * and handlerRequest.getPreviousResourceState (resource tags).
+     * Get tags from the previous resource request.
      */
     public Map<String, String> getPreviouslyAttachedTags(final ResourceHandlerRequest<M> handlerRequest) {
-        // get previous stack level tags from handlerRequest
-        final Map<String, String> previousTags = handlerRequest.getPreviousResourceTags() != null ?
+        return handlerRequest.getPreviousResourceTags() != null ?
                 handlerRequest.getPreviousResourceTags() : Collections.emptyMap();
-        // TODO: get resource level tags from previous resource state based on your tag property name
-        // TODO: previousTags.putAll(handlerRequest.getPreviousResourceState().getTags());
-        // getDesiredResourceTags() gets both resource and stack level tags. getTags() gets resource level tags only.
-        return previousTags;
     }
 
     /**
      * getNewDesiredTags
      *
-     * If stack tags and resource tags are not merged together in Configuration class,
-     * we will get new user defined tags from both resource model and previous stack tags.
+     * Get the set of tags desired for this request.
      */
     public Map<String, String> getNewDesiredTags(final ResourceHandlerRequest<M> handlerRequest) {
-        // get new stack level tags from handlerRequest
-        final Map<String, String> desiredTags = handlerRequest.getDesiredResourceTags() != null ?
+        return handlerRequest.getDesiredResourceTags() != null ?
                 handlerRequest.getDesiredResourceTags() : Collections.emptyMap();
-
-        // TODO: get resource level tags from resource model based on your tag property name
-        // TODO: desiredTags.putAll(convertToMap(resourceModel.getTags()));
-        // getDesiredResourceTags() gets both resource and stack level tags. getTags() gets resource level tags only.
-        return desiredTags;
 
     }
 
     /**
      * generateTagsToAdd
      *
-     * Determines the tags the customer desired to define or redefine.
+     * Determines the tags the customer desired to add or update.
      */
     public Set<Tag> generateTagsToAdd(final Set<Tag> previousTags, final Set<Tag> desiredTags) {
         return Sets.difference(new HashSet<>(desiredTags), new HashSet<>(previousTags));
@@ -129,7 +110,7 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
     /**
      * getTagsToRemove
      *
-     * Determines the tags the customer desired to remove from the function.
+     * Determines the tags the customer desired to remove.
      */
     public Set<Tag> generateTagsToRemove(final Set<Tag> previousTags, final Set<Tag> desiredTags) {
         return Sets.difference(new HashSet<>(previousTags), new HashSet<>(desiredTags));
@@ -138,7 +119,7 @@ public class TagHelper<M, C extends KeyCallbackContext, T extends KeyTranslator<
     /**
      * updateKeyTags
      *
-     * Updates the user defined tags as the customer desired to define or redefine
+     * Updates the user defined tags as the customer desired
      */
     public ProgressEvent<M, C>
     updateKeyTags(final AmazonWebServicesClientProxy proxy, final ProxyClient<KmsClient> proxyClient, final M model,
