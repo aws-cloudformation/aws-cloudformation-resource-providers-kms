@@ -35,10 +35,12 @@ import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import software.amazon.kms.common.ClientBuilder;
+import software.amazon.kms.common.CreatableKeyTranslator;
 import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
 import software.amazon.kms.common.KeyHandlerHelper;
 import software.amazon.kms.common.KeyTranslator;
+import software.amazon.kms.common.TagHelper;
 import software.amazon.kms.common.TestConstants;
 import software.amazon.kms.common.TestUtils;
 
@@ -92,11 +94,13 @@ public class CreateHandlerTest {
     private ProxyClient<KmsClient> proxyKmsClient;
     private ProxyClient<KmsClient> primaryProxyKmsClient;
     private CallbackContext callbackContext;
+    private TagHelper<ResourceModel, CallbackContext, KeyTranslator<ResourceModel>> tagHelper;
 
     @BeforeEach
     public void setup() {
+        tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
         handler = new CreateHandler(clientBuilder, translator, keyApiHelper,
-            eventualConsistencyHandlerHelper, keyHandlerHelper);
+            eventualConsistencyHandlerHelper, keyHandlerHelper, tagHelper);
         proxy = spy(
             new AmazonWebServicesClientProxy(TestConstants.LOGGER, TestConstants.MOCK_CREDENTIALS,
                 () -> Duration.ofSeconds(600).toMillis()));

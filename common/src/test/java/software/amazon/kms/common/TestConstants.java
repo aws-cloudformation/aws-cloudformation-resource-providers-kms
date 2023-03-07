@@ -38,6 +38,9 @@ public class TestConstants {
     public static final Set<Tag> SDK_TAGS = new ImmutableSet.Builder<Tag>()
         .add(Tag.builder().tagKey("Key1").tagValue("Value1").build())
         .build();
+    public static final Set<Tag> SDK_TAGS_NEW = new ImmutableSet.Builder<Tag>()
+            .add(Tag.builder().tagKey("Key2").tagValue("Value2").build())
+            .build();
 
     private TestConstants() {
         // Prevent Instantiation

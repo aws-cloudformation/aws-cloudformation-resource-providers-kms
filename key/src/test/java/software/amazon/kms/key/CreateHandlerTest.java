@@ -35,6 +35,7 @@ import software.amazon.kms.common.CreatableKeyHandlerHelper;
 import software.amazon.kms.common.CreatableKeyTranslator;
 import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
+import software.amazon.kms.common.TagHelper;
 import software.amazon.kms.common.TestConstants;
 import software.amazon.kms.common.TestUtils;
 
@@ -90,11 +91,13 @@ public class CreateHandlerTest {
     private AmazonWebServicesClientProxy proxy;
     private ProxyClient<KmsClient> proxyKmsClient;
     private CallbackContext callbackContext;
+    private TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper;
 
     @BeforeEach
     public void setup() {
+        tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
         handler = new CreateHandler(clientBuilder, translator, keyApiHelper,
-            eventualConsistencyHandlerHelper, keyHandlerHelper);
+                eventualConsistencyHandlerHelper, keyHandlerHelper, tagHelper);
         proxy = spy(
             new AmazonWebServicesClientProxy(TestConstants.LOGGER, TestConstants.MOCK_CREDENTIALS,
                 () -> Duration.ofSeconds(600).toMillis()));

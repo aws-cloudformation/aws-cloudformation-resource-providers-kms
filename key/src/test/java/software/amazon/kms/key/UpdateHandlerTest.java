@@ -2,8 +2,9 @@ package software.amazon.kms.key;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -32,8 +33,13 @@ import software.amazon.kms.common.CreatableKeyHandlerHelper;
 import software.amazon.kms.common.CreatableKeyTranslator;
 import software.amazon.kms.common.EventualConsistencyHandlerHelper;
 import software.amazon.kms.common.KeyApiHelper;
+import software.amazon.kms.common.TagHelper;
 import software.amazon.kms.common.TestConstants;
 import software.amazon.kms.common.TestUtils;
+import software.amazon.awssdk.services.kms.model.TagResourceRequest;
+import software.amazon.awssdk.services.kms.model.TagResourceResponse;
+import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
+import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
 
 @ExtendWith(MockitoExtension.class)
 public class UpdateHandlerTest {
@@ -90,11 +96,13 @@ public class UpdateHandlerTest {
     private AmazonWebServicesClientProxy proxy;
     private ProxyClient<KmsClient> proxyKmsClient;
     private CallbackContext callbackContext;
+    private TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper;
 
     @BeforeEach
     public void setup() {
+        tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
         handler = new UpdateHandler(clientBuilder, translator, keyApiHelper,
-            eventualConsistencyHandlerHelper, keyHandlerHelper);
+                eventualConsistencyHandlerHelper, keyHandlerHelper, tagHelper);
         proxy =
             new AmazonWebServicesClientProxy(TestConstants.LOGGER, TestConstants.MOCK_CREDENTIALS,
                 () -> Duration.ofSeconds(600).toMillis());
@@ -107,6 +115,8 @@ public class UpdateHandlerTest {
         // Mock out delegation to our helpers and make them return an IN_PROGRESS event
         final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
             ProgressEvent.progress(KEY_MODEL, callbackContext);
+        final TagResourceResponse tagResourceResponse = TagResourceResponse.builder().build();
+        final UntagResourceResponse untagResourceResponse = UntagResourceResponse.builder().build();
         when(keyHandlerHelper
             .describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
                 eq(false)))
@@ -127,10 +137,12 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext)))
             .thenReturn(inProgressEvent);
-        when(keyHandlerHelper
-            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
-                eq(callbackContext)))
-            .thenReturn(inProgressEvent);
+        when(keyApiHelper.tagResource(any(TagResourceRequest.class), eq(proxyKmsClient)))
+                .thenReturn(tagResourceResponse);
+        when(keyApiHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient)))
+            .thenReturn(untagResourceResponse);
+        when(keyHandlerHelper.retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+            eq(false))).thenReturn(inProgressEvent);
         when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
             .thenReturn(inProgressEvent);
 
@@ -165,8 +177,10 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext));
         verify(keyHandlerHelper)
-            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
-                eq(callbackContext));
+            .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext), eq(false));
+        verify(keyApiHelper)
+            .tagResource(any(TagResourceRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper).untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient));
         verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
 
         // We shouldn't call anything else
@@ -200,11 +214,11 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext)))
             .thenReturn(inProgressEvent);
-        // Throw CfnAccessDeniedException to mock no kms:TagResource permission
-        when(keyHandlerHelper
-            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
-                eq(callbackContext)))
+        // Throw CfnAccessDeniedException to mock no kms:UntagResource permission
+        when(keyApiHelper.untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient)))
             .thenThrow(CfnAccessDeniedException.class);
+        when(keyHandlerHelper.retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+                eq(false))).thenReturn(inProgressEvent);
 
         // Set up our request
         final ResourceHandlerRequest<ResourceModel> request =
@@ -235,9 +249,12 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext));
         verify(keyHandlerHelper)
-            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
-                eq(callbackContext));
-        verify(eventualConsistencyHandlerHelper, times(0)).waitForChangesToPropagate(eq(inProgressEvent));
+            .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext), eq(false));
+        verify(keyApiHelper)
+            .untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper, never())
+            .tagResource(any(TagResourceRequest.class), eq(proxyKmsClient));
+        verify(eventualConsistencyHandlerHelper, never()).waitForChangesToPropagate(eq(inProgressEvent));
 
         // We shouldn't call anything else
         verifyZeroInteractions(keyApiHelper);
@@ -246,7 +263,7 @@ public class UpdateHandlerTest {
     }
 
     @Test
-    public void handleRequest_SoftFailSucess() {
+    public void handleRequest_SoftFailSuccess() {
         // Mock out delegation to our helpers and make them return an IN_PROGRESS event
         final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
             ProgressEvent.progress(KEY_MODEL, callbackContext);
@@ -270,13 +287,10 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext)))
             .thenReturn(inProgressEvent);
-        // Throw CfnAccessDeniedException to mock no kms:TagResource permission
-        when(keyHandlerHelper
-            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
-                eq(callbackContext)))
-            .thenThrow(CfnAccessDeniedException.class);
-         when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
-             .thenReturn(inProgressEvent);
+        when(keyHandlerHelper.retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext),
+                eq(false))).thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+            .thenReturn(inProgressEvent);
 
 
         // Set up our request
@@ -310,8 +324,11 @@ public class UpdateHandlerTest {
             .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_PREVIOUS), eq(KEY_MODEL),
                 eq(callbackContext));
         verify(keyHandlerHelper)
-            .updateKeyTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(TestConstants.TAGS),
-                eq(callbackContext));
+            .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(callbackContext), eq(false));
+        verify(keyApiHelper, never())
+            .tagResource(any(TagResourceRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper, never())
+            .untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient));
         verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
 
         // We shouldn't call anything else
