@@ -27,6 +27,7 @@ import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorException;
 import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
 import software.amazon.cloudformation.exceptions.CfnThrottlingException;
+import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
 
 /**
  * Abstract Helper class for calling KMS APIs. The primary function of this class
@@ -38,6 +39,9 @@ public class AbstractKmsApiHelper {
     public static final String THROTTLING_ERROR_CODE = "ThrottlingException";
     public static final String ACCESS_DENIED_ERROR_CODE = "AccessDeniedException";
     public static final String VALIDATION_ERROR_CODE = "ValidationException";
+    public static final String KMS_TAG_RESOURCE_PERMISSION = "kms:TagResource";
+    public static final String KMS_UNTAG_RESOURCE_PERMISSION = "kms:UntagResource";
+
 
     protected <T> T wrapKmsExceptions(final String operation, final Supplier<T> serviceCall) {
         try {
@@ -59,6 +63,12 @@ public class AbstractKmsApiHelper {
             throw new CfnNotFoundException(addMessageIfNull(operation, e));
         } catch (final KmsException e) {
             if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
+                 // If this is a tagging related Access Denied we need to throw CfnUnauthorizedTaggingOperationException
+                 if (e.getMessage().contains(KMS_TAG_RESOURCE_PERMISSION) ||
+                         e.getMessage().contains(KMS_UNTAG_RESOURCE_PERMISSION)) {
+                     throw new CfnUnauthorizedTaggingOperationException(e);
+                 }
+
                 throw new CfnAccessDeniedException(operation, e);
             } else if (VALIDATION_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                 throw new CfnInvalidRequestException(addMessageIfNull(operation, e));
