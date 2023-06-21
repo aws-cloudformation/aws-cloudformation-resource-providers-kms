@@ -45,6 +45,15 @@ Properties:
 </pre>
 
 ## Properties
+#### BypassPolicyLockoutSafetyCheck
+
+To bypass the policy lockout safety check.Default value is false.
+
+_Required_: No
+
+_Type_: Boolean
+
+_Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
 
 #### Description
 
@@ -82,7 +91,7 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 The key policy that authorizes use of the AWS KMS key. The key policy must observe the following rules.
 
-_Required_: Yes
+_Required_: No
 
 _Type_: Map, String
 
@@ -173,4 +182,3 @@ Returns the <code>Arn</code> value.
 #### KeyId
 
 Returns the <code>KeyId</code> value.
-

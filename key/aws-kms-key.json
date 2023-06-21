@@ -113,12 +113,14 @@
     },
     "KeyId": {
       "type": "string"
+    },
+    "BypassPolicyLockoutSafetyCheck": {
+      "description": "Does not skip the key policy lockout safety check.",
+      "type": "boolean",
+      "default": false
     }
   },
   "additionalProperties": false,
-  "required": [
-    "KeyPolicy"
-  ],
   "readOnlyProperties": [
     "/properties/Arn",
     "/properties/KeyId"
