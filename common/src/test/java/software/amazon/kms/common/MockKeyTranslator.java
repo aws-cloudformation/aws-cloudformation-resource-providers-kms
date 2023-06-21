@@ -62,6 +62,11 @@ public class MockKeyTranslator extends CreatableKeyTranslator<Object> {
     }
 
     @Override
+    public Boolean isBypassPolicyLockoutSafetyCheck(Object model) {
+        return false;
+    }
+
+    @Override
     public void setReadOnlyKeyMetadata(final Object model, final KeyMetadata keyMetadata) {
 
     }
