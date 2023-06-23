@@ -34,13 +34,12 @@ public abstract class CreatableKeyTranslator<M> extends KeyTranslator<M> {
 
     public CreateKeyRequest createKeyRequest(final M model, final Map<String, String> tags) {
         return CreateKeyRequest.builder()
-                .description(getKeyDescription(model))
-                .keyUsage(getKeyUsage(model))
-                .keySpec(getKeySpec(model))
-                .policy(translatePolicyInput(getKeyPolicy(model)))
-                .multiRegion(isMultiRegion(model))
-                .tags(translateTagsToSdk(tags))
-                .bypassPolicyLockoutSafetyCheck(isBypassPolicyLockoutSafetyCheck(model))
-                .build();
+            .keyUsage(getKeyUsage(model))
+            .keySpec(getKeySpec(model))
+            .policy(translatePolicyInput(getKeyPolicy(model)))
+            .multiRegion(isMultiRegion(model))
+            .tags(translateTagsToSdk(tags))
+            .bypassPolicyLockoutSafetyCheck(isBypassPolicyLockoutSafetyCheck(model))
+            .build();
     }
 }

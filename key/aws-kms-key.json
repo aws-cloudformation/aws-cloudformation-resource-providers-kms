@@ -106,7 +106,7 @@
       "type": "string"
     },
     "BypassPolicyLockoutSafetyCheck": {
-      "description": "Does not skip the key policy lockout safety check.",
+      "description": "Skips (\"bypasses\") the key policy lockout safety check. The default value is false.",
       "type": "boolean",
       "default": false
     }
