@@ -6,7 +6,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
-import software.amazon.cloudformation.exceptions.CfnNotUpdatableException;
+import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -127,7 +127,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         final CallbackContext callbackContext) {
         try {
             return eventSupplier.get();
-        } catch (final CfnAccessDeniedException e) {
+        } catch (final CfnAccessDeniedException | CfnUnauthorizedTaggingOperationException e) {
             return ProgressEvent.progress(model, callbackContext);
         }
     }

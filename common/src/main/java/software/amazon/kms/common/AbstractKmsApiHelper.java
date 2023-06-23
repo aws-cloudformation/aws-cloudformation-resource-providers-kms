@@ -41,6 +41,7 @@ public class AbstractKmsApiHelper {
     public static final String VALIDATION_ERROR_CODE = "ValidationException";
     public static final String KMS_TAG_RESOURCE_PERMISSION = "kms:TagResource";
     public static final String KMS_UNTAG_RESOURCE_PERMISSION = "kms:UntagResource";
+    public static final String KMS_LIST_RESOURCE_TAGS_PERMISSION = "kms:ListResourceTags";
 
 
     protected <T> T wrapKmsExceptions(final String operation, final Supplier<T> serviceCall) {
@@ -65,7 +66,8 @@ public class AbstractKmsApiHelper {
             if (ACCESS_DENIED_ERROR_CODE.equals(e.awsErrorDetails().errorCode())) {
                  // If this is a tagging related Access Denied we need to throw CfnUnauthorizedTaggingOperationException
                  if (e.getMessage().contains(KMS_TAG_RESOURCE_PERMISSION) ||
-                         e.getMessage().contains(KMS_UNTAG_RESOURCE_PERMISSION)) {
+                         e.getMessage().contains(KMS_UNTAG_RESOURCE_PERMISSION) ||
+                         e.getMessage().contains(KMS_LIST_RESOURCE_TAGS_PERMISSION)) {
                      throw new CfnUnauthorizedTaggingOperationException(e);
                  }
 
