@@ -38,8 +38,23 @@ import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorException;
 import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
 import software.amazon.cloudformation.exceptions.CfnThrottlingException;
+import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
 
 public class AbstractKmsApiHelperTest {
+    private static final String TAG_ON_CREATE_ERROR = "An error occurred (AccessDeniedException) " +
+            "when calling the CreateKey operation: You don't have the kms:TagResource permission " +
+            "that is required to add tags during key creation.";
+    private static final String UNTAG_ERROR = "An error occurred (AccessDeniedException) " +
+            "when calling the UntagResource operation: User: arn:aws:sts::170477759626:assumed-role/NoTagging " +
+            "is not authorized to perform: kms:UntagResource on resource: " +
+            "arn:aws:kms:us-east-1:170477759626:key/d1e4b07c-f54e-459d-929a-9751c4b44262 " +
+            "because no identity-based policy allows the kms:UntagResource action";
+    private static final String LIST_RESOURCE_TAGS_ERROR = "An error occurred (AccessDeniedException) " +
+            "when calling the UntagResource operation: User: arn:aws:sts::170477759626:assumed-role/NoTagging " +
+            "is not authorized to perform: kms:ListResourceTags on resource: " +
+            "arn:aws:kms:us-east-1:170477759626:key/d1e4b07c-f54e-459d-929a-9751c4b44262 " +
+            "because no identity-based policy allows the kms:ListResourceTags action";
+
     private MockKmsApiHelper mockKmsApiHelper;
 
     @BeforeEach
@@ -116,6 +131,54 @@ public class AbstractKmsApiHelperTest {
 
         assertThatExceptionOfType(CfnAccessDeniedException.class)
             .isThrownBy(() -> mockKmsApiHelper.testExceptionWrapping(accessDeniedException));
+    }
+
+    @Test
+    public void testTagOnCreateAccessDenied() {
+        final AwsServiceException accessDeniedException = KmsException.builder().awsErrorDetails(
+                AwsErrorDetails.builder()
+                        .sdkHttpResponse(SdkHttpResponse.builder()
+                                .statusCode(400)
+                                .build())
+                        .errorCode(ACCESS_DENIED_ERROR_CODE)
+                        .errorMessage(TAG_ON_CREATE_ERROR)
+                        .build())
+                .build();
+
+        assertThatExceptionOfType(CfnUnauthorizedTaggingOperationException.class)
+                .isThrownBy(() -> mockKmsApiHelper.testExceptionWrapping(accessDeniedException));
+    }
+
+    @Test
+    public void testTaggingAccessDenied() {
+        final AwsServiceException accessDeniedException = KmsException.builder().awsErrorDetails(
+                AwsErrorDetails.builder()
+                        .sdkHttpResponse(SdkHttpResponse.builder()
+                                .statusCode(400)
+                                .build())
+                        .errorCode(ACCESS_DENIED_ERROR_CODE)
+                        .errorMessage(UNTAG_ERROR)
+                        .build())
+                .build();
+
+        assertThatExceptionOfType(CfnUnauthorizedTaggingOperationException.class)
+                .isThrownBy(() -> mockKmsApiHelper.testExceptionWrapping(accessDeniedException));
+    }
+
+    @Test
+    public void testListResourceTagsAccessDenied() {
+        final AwsServiceException accessDeniedException = KmsException.builder().awsErrorDetails(
+                AwsErrorDetails.builder()
+                        .sdkHttpResponse(SdkHttpResponse.builder()
+                                .statusCode(400)
+                                .build())
+                        .errorCode(ACCESS_DENIED_ERROR_CODE)
+                        .errorMessage(LIST_RESOURCE_TAGS_ERROR)
+                        .build())
+                .build();
+
+        assertThatExceptionOfType(CfnUnauthorizedTaggingOperationException.class)
+                .isThrownBy(() -> mockKmsApiHelper.testExceptionWrapping(accessDeniedException));
     }
 
     @Test

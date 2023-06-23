@@ -21,6 +21,7 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
+import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -151,7 +152,7 @@ public class ReadHandlerTest {
         when(keyHandlerHelper.getKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
             eq(callbackContext))).thenThrow(CfnAccessDeniedException.class);
         when(keyHandlerHelper.retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
-            eq(callbackContext), eq(true))).thenThrow(CfnAccessDeniedException.class);
+            eq(callbackContext), eq(true))).thenThrow(CfnUnauthorizedTaggingOperationException.class);
         when(keyApiHelper.getKeyRotationStatus(any(GetKeyRotationStatusRequest.class),
             eq(proxyKmsClient))).thenThrow(CfnAccessDeniedException.class);
 
