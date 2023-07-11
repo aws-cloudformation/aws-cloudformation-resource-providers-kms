@@ -60,11 +60,6 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
     }
 
     @Override
-    public Boolean isBypassPolicyLockoutSafetyCheck(final ResourceModel model) {
-        return model.getBypassPolicyLockoutSafetyCheck();
-    }
-
-    @Override
     public void setReadOnlyKeyMetadata(final ResourceModel model, final KeyMetadata keyMetadata) {
         model.setArn(keyMetadata.arn());
         model.setKeyId(keyMetadata.keyId());
