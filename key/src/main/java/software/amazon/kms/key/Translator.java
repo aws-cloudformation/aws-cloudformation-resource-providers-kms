@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.KeyListEntry;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.kms.common.CreatableKeyTranslator;
 
@@ -50,6 +51,11 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
     }
 
     @Override
+    public OriginType getOrigin(final ResourceModel model) {
+        return OriginType.fromValue(model.getOrigin());
+    }
+
+    @Override
     public KeySpec getKeySpec(final ResourceModel model) {
         return KeySpec.fromValue(model.getKeySpec());
     }
@@ -71,6 +77,7 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
         model.setDescription(keyMetadata.description());
         model.setEnabled(keyMetadata.enabled());
         model.setKeyUsage(keyMetadata.keyUsageAsString());
+        model.setOrigin(keyMetadata.originAsString());
         model.setKeySpec(keyMetadata.keySpecAsString());
         model.setMultiRegion(keyMetadata.multiRegion());
     }
@@ -90,6 +97,7 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
         return CreateKeyRequest.builder()
             .description(resourceModel.getDescription())
             .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
+            .origin(OriginType.fromValue(resourceModel.getOrigin()))
             .keySpec(KeySpec.fromValue(resourceModel.getKeySpec()))
             .policy(translatePolicyInput(resourceModel.getKeyPolicy()))
             .multiRegion(resourceModel.getMultiRegion())

@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -52,6 +53,7 @@ public class UpdateHandlerTest {
             .enableKeyRotation(false)
             .multiRegion(false)
             .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
+            .origin(OriginType.AWS_KMS.toString())
             .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
             .keyPolicy(TestConstants.DESERIALIZED_KEY_POLICY)
             .tags(ImmutableSet.of(Tag.builder()
@@ -69,6 +71,7 @@ public class UpdateHandlerTest {
     private static final ResourceModel KEY_MODEL_PREVIOUS_IMMUTABLE = KEY_MODEL_BUILDER
             .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
             .keySpec(KeySpec.RSA_2048.toString())
+            .origin(OriginType.EXTERNAL.toString())
             .multiRegion(true)
             .build();
 

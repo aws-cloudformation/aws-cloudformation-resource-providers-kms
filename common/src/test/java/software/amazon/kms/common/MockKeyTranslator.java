@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyListEntry;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.awssdk.services.kms.model.Tag;
 
 /**
@@ -49,6 +50,11 @@ public class MockKeyTranslator extends CreatableKeyTranslator<Object> {
     @Override
     public KeyUsageType getKeyUsage(final Object model) {
         return KeyUsageType.ENCRYPT_DECRYPT;
+    }
+
+    @Override
+    public OriginType getOrigin(final Object model) {
+        return OriginType.AWS_KMS;
     }
 
     @Override

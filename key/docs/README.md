@@ -17,6 +17,7 @@ To declare this entity in your AWS CloudFormation template, use the following sy
         "<a href="#enablekeyrotation" title="EnableKeyRotation">EnableKeyRotation</a>" : <i>Boolean</i>,
         "<a href="#keypolicy" title="KeyPolicy">KeyPolicy</a>" : <i>Map, String</i>,
         "<a href="#keyusage" title="KeyUsage">KeyUsage</a>" : <i>String</i>,
+        "<a href="#origin" title="Origin">Origin</a>" : <i>String</i>,
         "<a href="#keyspec" title="KeySpec">KeySpec</a>" : <i>String</i>,
         "<a href="#multiregion" title="MultiRegion">MultiRegion</a>" : <i>Boolean</i>,
         "<a href="#pendingwindowindays" title="PendingWindowInDays">PendingWindowInDays</a>" : <i>Integer</i>,
@@ -35,6 +36,7 @@ Properties:
     <a href="#enablekeyrotation" title="EnableKeyRotation">EnableKeyRotation</a>: <i>Boolean</i>
     <a href="#keypolicy" title="KeyPolicy">KeyPolicy</a>: <i>Map, String</i>
     <a href="#keyusage" title="KeyUsage">KeyUsage</a>: <i>String</i>
+    <a href="#origin" title="Origin">Origin</a>: <i>String</i>
     <a href="#keyspec" title="KeySpec">KeySpec</a>: <i>String</i>
     <a href="#multiregion" title="MultiRegion">MultiRegion</a>: <i>Boolean</i>
     <a href="#pendingwindowindays" title="PendingWindowInDays">PendingWindowInDays</a>: <i>Integer</i>
@@ -97,6 +99,18 @@ _Type_: String
 _Allowed Values_: <code>ENCRYPT_DECRYPT</code> | <code>SIGN_VERIFY</code> | <code>GENERATE_VERIFY_MAC</code>
 
 _Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
+
+#### Origin
+
+The source of the key material for the KMS key. You cannot change the origin after you create the KMS key. The default is AWS_KMS, which means that AWS KMS creates the key material.
+  		  
+_Required_: No
+  		  
+_Type_: String
+  		  
+_Allowed Values_: <code>AWS_KMS</code> | <code>EXTERNAL</code>
+  		  
+_Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacemnet)
 
 #### KeySpec
 

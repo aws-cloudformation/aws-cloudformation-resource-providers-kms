@@ -25,6 +25,7 @@ import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
 import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -47,6 +48,7 @@ public class CreateHandlerTest {
             .arn("mock-arn")
             .enableKeyRotation(true)
             .keyPolicy(TestConstants.DESERIALIZED_KEY_POLICY)
+            .origin(OriginType.AWS_KMS.toString())
             .pendingWindowInDays(7)
             .tags(ImmutableSet.of(Tag.builder()
                 .key("Key")
@@ -65,6 +67,10 @@ public class CreateHandlerTest {
         .build();
     private static final ResourceModel KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED = KEY_MODEL_BUILDER
         .keySpec(KeySpec.RSA_4096.toString())
+        .build();
+
+    private static final ResourceModel KEY_MODEL_IMPORT_ROTATION_ENABLED = KEY_MODEL_BUILDER
+        .origin(OriginType.EXTERNAL.toString())
         .build();
 
     @Mock
@@ -171,6 +177,20 @@ public class CreateHandlerTest {
             .handleRequest(proxy, request, new CallbackContext(), proxyKmsClient,
                 TestConstants.LOGGER))
             .withMessage(
-                "Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+                "Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric or external keys.");
+    }
+
+    @Test
+    public void handleRequest_ImportRotationEnabled() {
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .desiredResourceState(KEY_MODEL_IMPORT_ROTATION_ENABLED)
+                        .build();
+
+        assertThatExceptionOfType(CfnInvalidRequestException.class).isThrownBy(() -> handler
+            .handleRequest(proxy, request, new CallbackContext(), proxyKmsClient,
+                TestConstants.LOGGER))
+            .withMessage(
+                "Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric or external keys.");
     }
 }

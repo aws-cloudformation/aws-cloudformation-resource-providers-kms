@@ -4,6 +4,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeySpec;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
@@ -133,7 +134,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
     }
 
     public static final String CFN_INVALID_REQUEST_MESSAGE = "You cannot change the values of the KeySpec, "
-            + "KeyUsage, or MultiRegion properties of an AWS::KMS::Key resource.";
+            + "KeyUsage, Origin, or MultiRegion properties of an AWS::KMS::Key resource.";
 
     /**
      * A helper method for validating that the requested resource model transition is possible.
@@ -142,12 +143,12 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         final ProgressEvent<ResourceModel, CallbackContext> progress,
         final ResourceModel previousModel,
         final ResourceModel model) {
-        // If the key is asymmetric, we cannot enable key rotation
-        if (!Objects
-            .equals(model.getKeySpec(), KeySpec.SYMMETRIC_DEFAULT.toString())
+        // If the key is asymmetric or external, we cannot enable key rotation
+        if ((!Objects.equals(model.getKeySpec(), KeySpec.SYMMETRIC_DEFAULT.toString()) ||
+            Objects.equals(model.getOrigin(), OriginType.EXTERNAL.toString()))
             && model.getEnableKeyRotation()) {
             throw new CfnInvalidRequestException(
-                "You cannot set the EnableKeyRotation property to true on asymmetric keys.");
+                "You cannot set the EnableKeyRotation property to true on asymmetric or external keys.");
         }
 
         // Update specific validation
@@ -160,11 +161,12 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
                     + "property while the Enabled property is false.");
             }
 
-            // If the key usage or spec or multi-region value changes,
+            // If the key usage, spec, origin or multi-region value changes,
             // The update fails, CfnInvalidRequestException is thrown
             if (!Objects.equals(previousModel.getKeyUsage(), model.getKeyUsage())
                 || !Objects.equals(previousModel.getKeySpec(), model.getKeySpec())
-                || !Objects.equals(previousModel.getMultiRegion(), model.getMultiRegion())) {
+                || !Objects.equals(previousModel.getMultiRegion(), model.getMultiRegion())
+                || !Objects.equals(previousModel.getOrigin(), model.getOrigin())) {
                 throw new CfnInvalidRequestException(CFN_INVALID_REQUEST_MESSAGE);
             }
         }

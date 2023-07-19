@@ -36,6 +36,7 @@ public class TranslatorTest {
         assertThat(translator.getPendingWindowInDays(KEY_MODEL))
             .isEqualTo(KEY_MODEL.getPendingWindowInDays());
         assertThat(translator.getKeyUsage(KEY_MODEL)).isEqualTo(KEY_MODEL.getKeyUsage());
+        assertThat(translator.getOrigin(KEY_MODEL)).isEqualTo(KEY_MODEL.getOrigin());
         assertThat(translator.getKeySpec(KEY_MODEL)).isEqualTo(KEY_MODEL.getKeySpec());
         assertThat(translator.isMultiRegion(KEY_MODEL)).isEqualTo(KEY_MODEL.getMultiRegion());
     }
@@ -58,6 +59,7 @@ public class TranslatorTest {
         assertThat(model.getDescription()).isEqualTo(KEY_MODEL.getDescription());
         assertThat(model.getEnabled()).isEqualTo(KEY_MODEL.getEnabled());
         assertThat(model.getKeyUsage()).isEqualTo(KEY_MODEL.getKeyUsage());
+        assertThat(model.getOrigin()).isEqualTo(KEY_MODEL.getOrigin());
         assertThat(model.getKeySpec()).isEqualTo(KEY_MODEL.getKeySpec());
         assertThat(model.getMultiRegion()).isEqualTo(KEY_MODEL.getMultiRegion());
     }

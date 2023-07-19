@@ -3,6 +3,7 @@ package software.amazon.kms.key;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyRotationStatusResponse;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
@@ -51,6 +53,14 @@ public class ReadHandlerTest {
     private static final ResourceModel KEY_MODEL_REDACTED = KEY_MODEL_BUILDER.build();
     private static final ResourceModel KEY_MODEL = KEY_MODEL_BUILDER
         .pendingWindowInDays(7)
+        .enableKeyRotation(false)
+        .build();
+    private static final ResourceModel KEY_MODEL_EXTERNAL = KEY_MODEL_BUILDER
+        .pendingWindowInDays(null)
+        .origin(OriginType.EXTERNAL.toString())
+        .enableKeyRotation(false)
+        .build();
+    private static final ResourceModel KEY_MODEL_EXTERNAL_REDACTED = KEY_MODEL_BUILDER
         .enableKeyRotation(false)
         .build();
 
@@ -178,6 +188,48 @@ public class ReadHandlerTest {
         verify(keyHandlerHelper)
             .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
                 eq(callbackContext), eq(true));
+
+        // We shouldn't call anything else
+        verifyZeroInteractions(keyApiHelper);
+        verifyNoMoreInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_SimpleSuccess_OriginExternal() {
+        // Mock out delegation to our helpers and make them return an IN_PROGRESS event
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL_EXTERNAL, callbackContext);
+        when(keyHandlerHelper.describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL),
+                eq(callbackContext), eq(true))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper.getKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL),
+                eq(callbackContext))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL), eq(callbackContext),
+                        eq(true))).thenReturn(inProgressEvent);
+
+        // Set up our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder().desiredResourceState(KEY_MODEL_EXTERNAL).build();
+
+        // Execute our read handler and make sure the expected results are returned
+        assertThat(handler
+                .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_EXTERNAL_REDACTED));
+
+        // Make sure we never called get key rotation status
+        verify(keyApiHelper, never()).getKeyRotationStatus(any(GetKeyRotationStatusRequest.class),
+                eq(proxyKmsClient));
+
+        // Make sure the expected helpers were called with the correct parameters
+        verify(keyHandlerHelper)
+                .describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL), eq(callbackContext),
+                        eq(true));
+        verify(keyHandlerHelper)
+                .getKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL), eq(callbackContext));
+        verify(keyHandlerHelper)
+                .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL),
+                        eq(callbackContext), eq(true));
 
         // We shouldn't call anything else
         verifyZeroInteractions(keyApiHelper);
