@@ -1,0 +1,57 @@
+{
+  "CreateInputs": {
+    "Description": "[Contract Test] Create",
+    "Enabled": false,
+    "EnableKeyRotation": false,
+    "KeyPolicy": {
+      "Version": "2012-10-17",
+      "Id": "key-default-1",
+      "Statement": [
+        {
+          "Sid": "Enable IAM User Permissions",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:{{partition}}:iam::{{account}}:root"
+          },
+          "Action": "kms:*",
+          "Resource": "*"
+        }
+      ]
+    },
+    "KeySpec": "SYMMETRIC_DEFAULT",
+    "KeyUsage": "ENCRYPT_DECRYPT",
+    "Origin": "AWS_KMS",
+    "PendingWindowInDays": 7,
+    "Tags": [
+      {
+        "Key": "Key",
+        "Value": "Value"
+      }
+    ]
+  },
+  "PatchInputs": [
+    {
+      "op": "add",
+      "path": "/Tags/1",
+      "value": {
+        "Key": "Key2",
+        "Value": "Value2"
+      }
+    },
+    {
+      "op": "add",
+      "path": "/PendingWindowInDays",
+      "value": 8
+    },
+    {
+      "op": "replace",
+      "path": "/Enabled",
+      "value": true
+    },
+    {
+      "op": "replace",
+      "path": "/Description",
+      "value": "[Contract Test] Update"
+    }
+  ]
+}

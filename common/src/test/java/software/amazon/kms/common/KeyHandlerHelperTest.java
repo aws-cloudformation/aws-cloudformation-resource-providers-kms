@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.kms.model.ListKeysRequest;
 import software.amazon.awssdk.services.kms.model.ListKeysResponse;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.awssdk.services.kms.model.PutKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionResponse;
@@ -66,6 +67,7 @@ public class KeyHandlerHelperTest {
         .keyId("mock-key-id")
         .arn("mock-arn")
         .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
+        .origin(OriginType.AWS_KMS.toString())
         .keyUsage(KeyUsageType.ENCRYPT_DECRYPT.toString())
         .description("mock-description")
         .keyState(KeyState.ENABLED)

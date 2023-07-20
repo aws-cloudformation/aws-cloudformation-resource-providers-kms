@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.kms.model.CreateKeyRequest;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
+import software.amazon.awssdk.services.kms.model.OriginType;
 
 /**
  * A KeyTranslator with all of the translation logic necessary for key creation.
@@ -24,6 +25,8 @@ public abstract class CreatableKeyTranslator<M> extends KeyTranslator<M> {
 
     public abstract KeyUsageType getKeyUsage(final M model);
 
+    public abstract OriginType getOrigin(final M model);
+
     public abstract KeySpec getKeySpec(final M model);
 
     public abstract Boolean isMultiRegion(final M model);
@@ -34,6 +37,7 @@ public abstract class CreatableKeyTranslator<M> extends KeyTranslator<M> {
         return CreateKeyRequest.builder()
             .description(getKeyDescription(model))
             .keyUsage(getKeyUsage(model))
+            .origin(getOrigin(model))
             .keySpec(getKeySpec(model))
             .policy(translatePolicyInput(getKeyPolicy(model)))
             .multiRegion(isMultiRegion(model))

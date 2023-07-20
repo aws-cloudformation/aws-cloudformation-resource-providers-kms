@@ -1,10 +1,13 @@
 package software.amazon.kms.key;
 
 
+import java.util.Objects;
+
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
 
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -47,18 +50,26 @@ public class ReadHandler extends BaseHandlerStd {
             .then(p -> softFailAccessDenied(() -> keyHandlerHelper
                 .getKeyPolicy(proxy, proxyClient, model, callbackContext), model, callbackContext))
             // Retrieving the rotation status can potentially cause an access denied exception
-            .then(p -> softFailAccessDenied(() -> proxy
-                .initiate("kms::get-key-rotation-status", proxyClient, model, callbackContext)
-                .translateToServiceRequest(translator::getKeyRotationStatusRequest)
-                .makeServiceCall(keyApiHelper::getKeyRotationStatus)
-                .done(getKeyRotationStatusResponse -> {
-                    model.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
-                    return ProgressEvent.progress(model, callbackContext);
-                }), model, callbackContext))
+            .then(p -> softFailAccessDenied(() -> {
+                if (!Objects.equals(model.getOrigin(), OriginType.EXTERNAL.toString())) {
+                    return proxy
+                        .initiate("kms::get-key-rotation-status", proxyClient, model, callbackContext)
+                        .translateToServiceRequest(translator::getKeyRotationStatusRequest)
+                        .makeServiceCall(keyApiHelper::getKeyRotationStatus)
+                        .done(getKeyRotationStatusResponse -> {
+                            model.setEnableKeyRotation(getKeyRotationStatusResponse.keyRotationEnabled());
+                            return ProgressEvent.progress(model, callbackContext);
+                        });
+                }
+                model.setEnableKeyRotation(false);
+                return ProgressEvent.progress(model, callbackContext);
+            }, model, callbackContext))
             // Retrieving the tags can potentially cause an access denied exception, fail gracefully
             .then(p -> softFailAccessDenied(() -> keyHandlerHelper
                 .retrieveResourceTags(proxy, proxyClient, model, callbackContext, true),
                 model, callbackContext))
+                // !!! WARNING !!! Make sure to update unsetWriteOnly when you add a new property
+                // which is not a WriteOnly property or contract tests will break
             .then(p -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(model)));
     }
 }
