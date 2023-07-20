@@ -68,9 +68,16 @@ public class CreateHandlerTest {
     private static final ResourceModel KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED = KEY_MODEL_BUILDER
         .keySpec(KeySpec.RSA_4096.toString())
         .build();
-
-    private static final ResourceModel KEY_MODEL_IMPORT_ROTATION_ENABLED = KEY_MODEL_BUILDER
+    private static final ResourceModel KEY_MODEL_EXTERNAL_ROTATION_ENABLED = KEY_MODEL_BUILDER
         .origin(OriginType.EXTERNAL.toString())
+        .build();
+    private static final ResourceModel KEY_MODEL_EXTERNAL_ROTATION_DISABLED = KEY_MODEL_BUILDER
+        .enableKeyRotation(false)
+        .origin(OriginType.EXTERNAL.toString())
+        .build();
+    private static final ResourceModel KEY_MODEL_EXTERNAL_REDACTED = KEY_MODEL_BUILDER
+        .origin(OriginType.EXTERNAL.toString())
+        .enableKeyRotation(false)
         .build();
 
     @Mock
@@ -181,16 +188,59 @@ public class CreateHandlerTest {
     }
 
     @Test
-    public void handleRequest_ImportRotationEnabled() {
+    public void handleRequest_ExternalRotationEnabled() {
         final ResourceHandlerRequest<ResourceModel> request =
-                ResourceHandlerRequest.<ResourceModel>builder()
-                        .desiredResourceState(KEY_MODEL_IMPORT_ROTATION_ENABLED)
-                        .build();
+            ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(KEY_MODEL_EXTERNAL_ROTATION_ENABLED)
+                .build();
 
         assertThatExceptionOfType(CfnInvalidRequestException.class).isThrownBy(() -> handler
             .handleRequest(proxy, request, new CallbackContext(), proxyKmsClient,
                 TestConstants.LOGGER))
             .withMessage(
                 "Invalid request provided: You cannot set the EnableKeyRotation property to true on asymmetric or external keys.");
+    }
+
+    @Test
+    public void handleRequest_ExternalRotationDisabled() {
+        // Mock our create key call, disable key call, and final propagation
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL_EXTERNAL_ROTATION_DISABLED, callbackContext);
+        when(keyHandlerHelper
+                .createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL_ROTATION_DISABLED),
+                        eq(callbackContext),
+                        eq(TestConstants.TAGS))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
+                        eq(KEY_MODEL_EXTERNAL_ROTATION_DISABLED),
+                        eq(callbackContext))).thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+                .thenReturn(inProgressEvent);
+
+        // Setup our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .desiredResourceState(KEY_MODEL_EXTERNAL_ROTATION_DISABLED)
+                        .desiredResourceTags(TestConstants.TAGS)
+                        .build();
+
+        // Execute the create handler and make sure it returns the expected results
+        assertThat(handler
+                .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_EXTERNAL_REDACTED));
+
+        // Make sure we called our helpers to create the key, disable the key if needed,
+        // and to complete the final propagation
+        verify(keyHandlerHelper)
+                .createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_EXTERNAL_ROTATION_DISABLED),
+                        eq(callbackContext), eq(TestConstants.TAGS));
+        verify(keyHandlerHelper).disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
+                eq(KEY_MODEL_EXTERNAL_ROTATION_DISABLED), eq(callbackContext));
+        verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
+
+        // We shouldn't make any other calls
+        verifyNoMoreInteractions(keyApiHelper);
+        verifyZeroInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
     }
 }
