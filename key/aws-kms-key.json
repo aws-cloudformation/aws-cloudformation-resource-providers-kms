@@ -47,7 +47,8 @@
       "type": [
         "object",
         "string"
-      ]
+      ],
+      "default": "{\n    \"Version\": \"2012-10-17\",\n    \"Id\": \"key-default\",\n    \"Statement\": [\n        {\n            \"Sid\": \"Enable IAM User Permissions\",\n            \"Effect\": \"Allow\",\n            \"Principal\": {\n                \"AWS\": \"arn:<partition>:iam::<account-id>:root\"\n            },\n            \"Action\": \"kms:*\",\n            \"Resource\": \"*\"\n        }\n    ]\n}"
     },
     "KeyUsage": {
       "description": "Determines the cryptographic operations for which you can use the AWS KMS key. The default value is ENCRYPT_DECRYPT. This property is required only for asymmetric AWS KMS keys. You can't change the KeyUsage value after the AWS KMS key is created.",
@@ -115,7 +116,7 @@
       "type": "string"
     },
     "BypassPolicyLockoutSafetyCheck": {
-      "description": "Does not skip the key policy lockout safety check.",
+      "description": "Skips (\"bypasses\") the key policy lockout safety check. The default value is false.",
       "type": "boolean",
       "default": false
     }
@@ -129,7 +130,8 @@
     "/properties/KeyId"
   ],
   "writeOnlyProperties": [
-    "/properties/PendingWindowInDays"
+    "/properties/PendingWindowInDays",
+    "/properties/BypassPolicyLockoutSafetyCheck"
   ],
   "tagging": {
     "taggable": true,
@@ -143,7 +145,8 @@
         "kms:CreateKey",
         "kms:EnableKeyRotation",
         "kms:DisableKey",
-        "kms:TagResource"
+        "kms:TagResource",
+        "kms:PutKeyPolicy"
       ]
     },
     "read": {
@@ -164,7 +167,8 @@
         "kms:PutKeyPolicy",
         "kms:TagResource",
         "kms:UntagResource",
-        "kms:UpdateKeyDescription"
+        "kms:UpdateKeyDescription",
+        "kms:ListResourceTags"
       ]
     },
     "delete": {

@@ -40,6 +40,13 @@ public class Translator extends KeyTranslator<ResourceModel> {
     }
 
     @Override
+    public Boolean isBypassPolicyLockoutSafetyCheck(final ResourceModel model) {
+        // Return BypassPolicyLockoutSafetyCheck value when ReplicaKey supports this.
+        // TODO: https://sim.amazon.com/issues/KMSFACE-9300
+        return null;
+    }
+
+    @Override
     public void setKeyMetadata(final ResourceModel model, final KeyMetadata keyMetadata) {
         model.setArn(keyMetadata.arn());
         model.setKeyId(keyMetadata.keyId());

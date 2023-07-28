@@ -1,6 +1,6 @@
 package software.amazon.kms.key;
 
-import static software.amazon.kms.key.ModelAdapter.setDefaults;
+import static software.amazon.kms.key.ModelAdapter.setDefaultsForCreateKey;
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
 
@@ -39,7 +39,7 @@ public class CreateHandler extends BaseHandlerStd {
         final CallbackContext callbackContext,
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
-        final ResourceModel model = setDefaults(request.getDesiredResourceState());
+        final ResourceModel model = setDefaultsForCreateKey(request.getDesiredResourceState());
 
         return ProgressEvent.progress(model, callbackContext)
             .then(progress -> validateResourceModel(progress, null, model))

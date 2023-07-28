@@ -60,6 +60,8 @@ public abstract class KeyTranslator<M> {
 
     public abstract Integer getPendingWindowInDays(final M model);
 
+    public abstract Boolean isBypassPolicyLockoutSafetyCheck(final M model);
+
     public abstract void setKeyMetadata(final M model, final KeyMetadata describeKeyResponse);
 
     public abstract void setKeyPolicy(final M model, final Object keyPolicy);
@@ -109,6 +111,7 @@ public abstract class KeyTranslator<M> {
 
     public PutKeyPolicyRequest putKeyPolicyRequest(final M model) {
         return PutKeyPolicyRequest.builder()
+            .bypassPolicyLockoutSafetyCheck(isBypassPolicyLockoutSafetyCheck(model))
             .keyId(getKeyId(model))
             .policyName(DEFAULT_POLICY_NAME)
             .policy(translatePolicyInput(getKeyPolicy(model)))

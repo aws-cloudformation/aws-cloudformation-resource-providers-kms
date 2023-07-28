@@ -12,6 +12,7 @@ To declare this entity in your AWS CloudFormation template, use the following sy
 {
     "Type" : "AWS::KMS::Key",
     "Properties" : {
+        "<a href="#bypassPolicyLockoutSafetyCheck" title="BypassPolicyLockoutSafetyCheck">BypassPolicyLockoutSafetyCheck</a>" : <i>Boolean</i>,
         "<a href="#description" title="Description">Description</a>" : <i>String</i>,
         "<a href="#enabled" title="Enabled">Enabled</a>" : <i>Boolean</i>,
         "<a href="#enablekeyrotation" title="EnableKeyRotation">EnableKeyRotation</a>" : <i>Boolean</i>,
@@ -31,6 +32,7 @@ To declare this entity in your AWS CloudFormation template, use the following sy
 <pre>
 Type: AWS::KMS::Key
 Properties:
+    <a href="#bypassPolicyLockoutSafetyCheck" title="BypassPolicyLockoutSafetyCheck">BypassPolicyLockoutSafetyCheck</a>" : <i>Boolean</i>,
     <a href="#description" title="Description">Description</a>: <i>String</i>
     <a href="#enabled" title="Enabled">Enabled</a>: <i>Boolean</i>
     <a href="#enablekeyrotation" title="EnableKeyRotation">EnableKeyRotation</a>: <i>Boolean</i>
@@ -89,8 +91,22 @@ _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormati
 
 #### KeyPolicy
 
-The key policy that authorizes use of the AWS KMS key. The key policy must observe the following rules.
-
+The key policy that authorizes use of the AWS KMS key. The default value is
+    {
+        "Version": "2012-10-17",
+        "Id": "key-default-1",
+        "Statement": [
+            {
+                "Sid": "Enable IAM User Permissions",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:<partition>:iam::<accountID>:root"
+                },
+                "Action": "kms:*",
+                "Resource": "*"
+            }
+        ]
+    }
 _Required_: No
 
 _Type_: Map, String

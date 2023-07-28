@@ -101,6 +101,7 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
                                                     final Map<String, String> tags) {
         return CreateKeyRequest.builder()
             .description(resourceModel.getDescription())
+            .bypassPolicyLockoutSafetyCheck(resourceModel.getBypassPolicyLockoutSafetyCheck())
             .keyUsage(KeyUsageType.fromValue(resourceModel.getKeyUsage()))
             .origin(OriginType.fromValue(resourceModel.getOrigin()))
             .keySpec(KeySpec.fromValue(resourceModel.getKeySpec()))

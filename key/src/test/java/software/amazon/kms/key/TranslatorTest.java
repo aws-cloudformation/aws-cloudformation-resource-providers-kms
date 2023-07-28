@@ -14,6 +14,7 @@ public class TranslatorTest {
         ResourceModel.builder()
             .keyId("mock-key-id")
             .arn("mock-arn")
+            .bypassPolicyLockoutSafetyCheck(false)
             .description("mock-description")
             .enabled(true)
             .keyPolicy(TestConstants.DESERIALIZED_KEY_POLICY)
@@ -33,6 +34,8 @@ public class TranslatorTest {
         assertThat(translator.getKeyDescription(KEY_MODEL)).isEqualTo(KEY_MODEL.getDescription());
         assertThat(translator.getKeyPolicy(KEY_MODEL)).isEqualTo(KEY_MODEL.getKeyPolicy());
         assertThat(translator.getKeyEnabled(KEY_MODEL)).isEqualTo(KEY_MODEL.getEnabled());
+        assertThat(translator.isBypassPolicyLockoutSafetyCheck(KEY_MODEL))
+            .isEqualTo(KEY_MODEL.getBypassPolicyLockoutSafetyCheck());
         assertThat(translator.getPendingWindowInDays(KEY_MODEL))
             .isEqualTo(KEY_MODEL.getPendingWindowInDays());
         assertThat(translator.getKeyUsage(KEY_MODEL)).isEqualTo(KEY_MODEL.getKeyUsage());
