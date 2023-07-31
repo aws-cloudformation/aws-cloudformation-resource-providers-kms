@@ -40,8 +40,10 @@ public class UpdateHandler extends BaseHandlerStd {
         final CallbackContext callbackContext,
         final ProxyClient<KmsClient> proxyClient,
         final Logger logger) {
-        final ResourceModel model = setDefaults(request.getDesiredResourceState());
-        final ResourceModel previousModel = setDefaults(request.getPreviousResourceState());
+        final String awsPartition = request.getAwsPartition();
+        final String accountId = request.getAwsAccountId();
+        final ResourceModel model = setDefaults(request.getDesiredResourceState(), awsPartition, accountId);
+        final ResourceModel previousModel = setDefaults(request.getPreviousResourceState(), awsPartition, accountId);
         final Map<String, String> tags = tagHelper.getNewDesiredTags(request);
 
         return ProgressEvent.progress(model, callbackContext)

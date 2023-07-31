@@ -93,7 +93,5 @@ public class KeyTranslatorTest {
             .isNotNull();
         assertThat(keyTranslator.untagResourceRequest(MOCK_MODEL, TestConstants.SDK_TAGS))
             .isNotNull();
-        assertThat(keyTranslator.untagResourceRequest(MOCK_MODEL, TestConstants.SDK_TAGS))
-            .isNotNull();
     }
 }

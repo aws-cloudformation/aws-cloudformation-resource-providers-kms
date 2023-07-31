@@ -31,10 +31,13 @@ public abstract class CreatableKeyTranslator<M> extends KeyTranslator<M> {
 
     public abstract Boolean isMultiRegion(final M model);
 
+    public abstract Boolean isBypassPolicyLockoutSafetyCheck(final M model);
+
     public abstract void setReadOnlyKeyMetadata(final M model, final KeyMetadata keyMetadata);
 
     public CreateKeyRequest createKeyRequest(final M model, final Map<String, String> tags) {
         return CreateKeyRequest.builder()
+            .bypassPolicyLockoutSafetyCheck(isBypassPolicyLockoutSafetyCheck(model))
             .description(getKeyDescription(model))
             .keyUsage(getKeyUsage(model))
             .origin(getOrigin(model))
