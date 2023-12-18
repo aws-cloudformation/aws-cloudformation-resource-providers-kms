@@ -4,8 +4,11 @@ import java.util.function.Supplier;
 
 import com.google.common.base.Strings;
 
+import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
+import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
+import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisabledException;
 import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
@@ -28,6 +31,7 @@ import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorExceptio
 import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
 import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
+import software.amazon.cloudformation.proxy.ProxyClient;
 
 /**
  * Abstract Helper class for calling KMS APIs. The primary function of this class
@@ -43,6 +47,14 @@ public class AbstractKmsApiHelper {
     public static final String KMS_UNTAG_RESOURCE_PERMISSION = "kms:UntagResource";
     public static final String KMS_LIST_RESOURCE_TAGS_PERMISSION = "kms:ListResourceTags";
 
+    private static final String DESCRIBE_KEY = "DescribeKey";
+
+    public DescribeKeyResponse describeKey(final DescribeKeyRequest describeKeyRequest,
+            final ProxyClient<KmsClient> proxyClient) {
+        return wrapKmsExceptions(DESCRIBE_KEY,
+                () -> proxyClient.injectCredentialsAndInvokeV2(describeKeyRequest,
+                        proxyClient.client()::describeKey));
+    }
 
     protected <T> T wrapKmsExceptions(final String operation, final Supplier<T> serviceCall) {
         try {

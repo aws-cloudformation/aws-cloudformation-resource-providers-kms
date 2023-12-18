@@ -89,18 +89,6 @@ public class KeyApiHelperTest {
     }
 
     @Test
-    public void testDescribeKey() {
-        final DescribeKeyRequest describeKeyRequest = DescribeKeyRequest.builder().build();
-        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().build();
-
-        doReturn(describeKeyResponse).when(proxy)
-            .injectCredentialsAndInvokeV2(same(describeKeyRequest), any());
-
-        assertThat(keyApiHelper.describeKey(describeKeyRequest, proxyKmsClient))
-            .isEqualTo(describeKeyResponse);
-    }
-
-    @Test
     public void testDisableKey() {
         final DisableKeyRequest disableKeyRequest = DisableKeyRequest.builder().build();
         final DisableKeyResponse disableKeyResponse = DisableKeyResponse.builder().build();

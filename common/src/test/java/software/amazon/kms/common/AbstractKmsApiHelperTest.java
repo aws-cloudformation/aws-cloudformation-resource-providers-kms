@@ -3,6 +3,9 @@ package software.amazon.kms.common;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doReturn;
 import static software.amazon.kms.common.KeyApiHelper.ACCESS_DENIED_ERROR_CODE;
 import static software.amazon.kms.common.KeyApiHelper.THROTTLING_ERROR_CODE;
 import static software.amazon.kms.common.KeyApiHelper.VALIDATION_ERROR_CODE;
@@ -10,13 +13,20 @@ import static software.amazon.kms.common.KeyApiHelper.VALIDATION_ERROR_CODE;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.AlreadyExistsException;
 import software.amazon.awssdk.services.kms.model.DependencyTimeoutException;
+import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
+import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisabledException;
 import software.amazon.awssdk.services.kms.model.InvalidAliasNameException;
 import software.amazon.awssdk.services.kms.model.InvalidArnException;
@@ -39,7 +49,10 @@ import software.amazon.cloudformation.exceptions.CfnServiceInternalErrorExceptio
 import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
 import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
+import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.ProxyClient;
 
+@ExtendWith(MockitoExtension.class)
 public class AbstractKmsApiHelperTest {
     private static final String TAG_ON_CREATE_ERROR = "An error occurred (AccessDeniedException) " +
             "when calling the CreateKey operation: You don't have the kms:TagResource permission " +
@@ -55,11 +68,31 @@ public class AbstractKmsApiHelperTest {
             "arn:aws:kms:us-east-1:170477759626:key/d1e4b07c-f54e-459d-929a-9751c4b44262 " +
             "because no identity-based policy allows the kms:ListResourceTags action";
 
+    @Mock
+    private KmsClient kms;
+
+    @Mock
+    private AmazonWebServicesClientProxy proxy;
+
     private MockKmsApiHelper mockKmsApiHelper;
+    private ProxyClient<KmsClient> proxyKmsClient;
 
     @BeforeEach
     public void setup() {
         mockKmsApiHelper = new MockKmsApiHelper();
+        proxyKmsClient = TestUtils.buildMockProxy(proxy, kms);
+    }
+
+    @Test
+    public void testDescribeKey() {
+        final DescribeKeyRequest describeKeyRequest = DescribeKeyRequest.builder().build();
+        final DescribeKeyResponse describeKeyResponse = DescribeKeyResponse.builder().build();
+
+        doReturn(describeKeyResponse).when(proxy)
+                .injectCredentialsAndInvokeV2(same(describeKeyRequest), any());
+
+        assertThat(mockKmsApiHelper.describeKey(describeKeyRequest, proxyKmsClient))
+                .isEqualTo(describeKeyResponse);
     }
 
     @Test
