@@ -3,9 +3,10 @@ package software.amazon.kms.key;
 import static software.amazon.kms.key.ModelAdapter.setDefaultsForCreateKey;
 import static software.amazon.kms.key.ModelAdapter.unsetWriteOnly;
 
-
+import com.google.common.annotations.VisibleForTesting;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.Delay;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -33,6 +34,18 @@ public class CreateHandler extends BaseHandlerStd {
             keyHandlerHelper, tagHelper);
     }
 
+    @VisibleForTesting
+    public CreateHandler(final ClientBuilder clientBuilder,
+                         final Translator translator,
+                         final KeyApiHelper keyApiHelper,
+                         final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                                 eventualConsistencyHandlerHelper,
+                         final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper,
+                         final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper,final Delay stabilizeDelay) {
+        super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
+                keyHandlerHelper, tagHelper,stabilizeDelay);
+    }
+
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
         final AmazonWebServicesClientProxy proxy,
         final ResourceHandlerRequest<ResourceModel> request,
@@ -49,6 +62,7 @@ public class CreateHandler extends BaseHandlerStd {
                 callbackContext))
             .then(progress -> keyHandlerHelper
                 .disableKeyIfNecessary(proxy, proxyClient, null, model, callbackContext))
+                .then(progress -> eventualConsistencyHandlerHelper.setRequestType(progress,false))
             // Final propagation to make sure all updates are reflected
             .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(model)));

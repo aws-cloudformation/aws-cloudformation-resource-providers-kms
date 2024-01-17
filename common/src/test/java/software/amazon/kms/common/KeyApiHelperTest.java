@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 
 
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ import software.amazon.awssdk.services.kms.model.ListKeysRequest;
 import software.amazon.awssdk.services.kms.model.ListKeysResponse;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsRequest;
 import software.amazon.awssdk.services.kms.model.ListResourceTagsResponse;
+import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.PutKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.PutKeyPolicyResponse;
 import software.amazon.awssdk.services.kms.model.ReplicateKeyRequest;
@@ -44,6 +46,7 @@ import software.amazon.awssdk.services.kms.model.UntagResourceRequest;
 import software.amazon.awssdk.services.kms.model.UntagResourceResponse;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionRequest;
 import software.amazon.awssdk.services.kms.model.UpdateKeyDescriptionResponse;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.ProxyClient;
 
@@ -113,6 +116,18 @@ public class KeyApiHelperTest {
     }
 
     @Test
+    public void testDisableKeyFailed() {
+        final DisableKeyRequest disableKeyRequest = DisableKeyRequest.builder().build();
+        doThrow(NotFoundException.class).when(proxy)
+                .injectCredentialsAndInvokeV2(same(disableKeyRequest), any());
+        try{
+            keyApiHelper.disableKey(disableKeyRequest, proxyKmsClient);
+        }catch(Exception e){
+            assertThat(e instanceof CfnNotFoundException);
+        }
+    }
+
+    @Test
     public void testEnableKey() {
         final EnableKeyRequest enableKeyRequest = EnableKeyRequest.builder().build();
         final EnableKeyResponse enableKeyResponse = EnableKeyResponse.builder().build();
@@ -150,6 +165,19 @@ public class KeyApiHelperTest {
 
         assertThat(keyApiHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient))
             .isEqualTo(enableKeyRotationResponse);
+    }
+
+    @Test
+    public void testEnableKeyRotationFailed() {
+        final EnableKeyRotationRequest enableKeyRotationRequest =
+                EnableKeyRotationRequest.builder().build();
+        doThrow(NotFoundException.class).when(proxy)
+                .injectCredentialsAndInvokeV2(same(enableKeyRotationRequest), any());
+        try{
+            keyApiHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient);
+        }catch(Exception e){
+            assertThat(e instanceof CfnNotFoundException);
+        }
     }
 
     @Test

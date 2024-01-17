@@ -47,12 +47,7 @@ public class CreatableKeyHandlerHelper<M, C extends KeyCallbackContext, T extend
                 // since updating writable metadata at this point would only
                 // overwrite the properties supplied in the CFN template.
                 keyTranslator.setReadOnlyKeyMetadata(model, createKeyResponse.keyMetadata());
-
-                // Wait for key state to propagate to other hosts
-                return ProgressEvent
-                    .defaultInProgressHandler(callbackContext,
-                        EventualConsistencyHandlerHelper.EVENTUAL_CONSISTENCY_DELAY_SECONDS,
-                        model);
+                return ProgressEvent.progress(model, callbackContext);
             });
     }
 }

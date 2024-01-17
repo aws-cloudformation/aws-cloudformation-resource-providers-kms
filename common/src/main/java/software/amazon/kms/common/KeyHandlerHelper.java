@@ -1,7 +1,8 @@
 package software.amazon.kms.common;
 
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -10,20 +11,24 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
 import software.amazon.awssdk.services.kms.model.KeyMetadata;
 import software.amazon.awssdk.services.kms.model.KeyState;
 import software.amazon.awssdk.services.kms.model.KmsInvalidStateException;
 import software.amazon.awssdk.services.kms.model.ListKeysResponse;
+import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionRequest;
 import software.amazon.awssdk.services.kms.model.ScheduleKeyDeletionResponse;
 import software.amazon.awssdk.services.kms.model.Tag;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.Delay;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
+import software.amazon.cloudformation.proxy.delay.CappedExponential;
 
 /**
  * A helper class for performing common KMS Key operations that are
@@ -39,6 +44,17 @@ public class KeyHandlerHelper<M, C extends KeyCallbackContext, T extends KeyTran
     final EventualConsistencyHandlerHelper<M, C> eventualConsistencyHandlerHelper;
     final T keyTranslator;
 
+    private final Delay stabilizeDelay;
+
+    //Exponential retry strategy for operation
+    public final Delay BACKOFF_STRATEGY =
+            CappedExponential.of()
+                    .minDelay(Duration.ofSeconds(1))
+                    .maxDelay(Duration.ofSeconds(5))
+                    .powerBy(1.3)
+                    .timeout(Duration.ofSeconds(60))
+                    .build();
+
     public KeyHandlerHelper(final String typeName,
                             final KeyApiHelper keyApiHelper,
                             final EventualConsistencyHandlerHelper<M, C> eventualConsistencyHandlerHelper,
@@ -47,6 +63,19 @@ public class KeyHandlerHelper<M, C extends KeyCallbackContext, T extends KeyTran
         this.keyApiHelper = keyApiHelper;
         this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
         this.keyTranslator = keyTranslator;
+        this.stabilizeDelay = BACKOFF_STRATEGY;
+    }
+
+    @VisibleForTesting
+    public KeyHandlerHelper(final String typeName,
+                            final KeyApiHelper keyApiHelper,
+                            final EventualConsistencyHandlerHelper<M, C> eventualConsistencyHandlerHelper,
+                            final T keyTranslator, final Delay stabilizeDelay) {
+        this.typeName = typeName;
+        this.keyApiHelper = keyApiHelper;
+        this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
+        this.keyTranslator = keyTranslator;
+        this.stabilizeDelay = stabilizeDelay != null ? stabilizeDelay : BACKOFF_STRATEGY;
     }
 
     /**
@@ -203,7 +232,21 @@ public class KeyHandlerHelper<M, C extends KeyCallbackContext, T extends KeyTran
         if (wasEnabled && !shouldBeEnabled) {
             return proxy.initiate("kms::disable-key", proxyClient, model, callbackContext)
                 .translateToServiceRequest(keyTranslator::disableKeyRequest)
-                .makeServiceCall(keyApiHelper::disableKey)
+                    .backoffDelay(stabilizeDelay)
+                    .makeServiceCall((disableKeyRequest, proxyClient1) -> {
+                        try {
+                            return keyApiHelper.disableKey((DisableKeyRequest) disableKeyRequest, proxyClient1);
+                        } catch (Exception e) {
+                            if (e instanceof CfnNotFoundException) {
+                                throw NotFoundException.builder()
+                                        .message(e.getMessage())
+                                        .cause(e.getCause())
+                                        .build();
+                            }
+                            throw e;
+                        }
+                    })
+                    .retryErrorFilter((_req, ex, _client, _model, _cb) -> ex instanceof NotFoundException)
                 .progress();
         }
 
@@ -328,7 +371,7 @@ public class KeyHandlerHelper<M, C extends KeyCallbackContext, T extends KeyTran
 
                     throw e;
                 }
-            })
+            }).then(p -> eventualConsistencyHandlerHelper.setRequestType(p, false))
             .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(p -> ProgressEvent.defaultSuccessHandler(null));
     }

@@ -81,7 +81,7 @@ public class CreatableKeyHandlerHelperTest {
         assertThat(keyHandlerHelper
             .createKey(proxy, proxyKmsClient, MOCK_MODEL, keyCallbackContext, TestConstants.TAGS))
             .isEqualTo(ProgressEvent.defaultInProgressHandler(keyCallbackContext,
-                EventualConsistencyHandlerHelper.EVENTUAL_CONSISTENCY_DELAY_SECONDS, MOCK_MODEL));
+                0, MOCK_MODEL));
 
         verify(keyTranslator).setReadOnlyKeyMetadata(eq(MOCK_MODEL), eq(KEY_METADATA));
     }
