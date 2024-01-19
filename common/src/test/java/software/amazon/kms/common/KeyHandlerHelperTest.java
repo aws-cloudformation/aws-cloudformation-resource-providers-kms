@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 import com.google.common.collect.ImmutableMap;
@@ -315,7 +318,7 @@ public class KeyHandlerHelperTest {
     public void testDisableKeyRetry() {
         keyHandlerHelper =
                 new KeyHandlerHelper<>(TestConstants.MOCK_TYPE_NAME, keyApiHelper,
-                        eventualConsistencyHandlerHelper, keyTranslator,null);
+                        eventualConsistencyHandlerHelper, keyTranslator, null);
         when(keyApiHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient))).thenThrow(CfnNotFoundException.class).thenReturn(DisableKeyResponse.builder().build());
         when(keyTranslator.getKeyEnabled(eq(MOCK_MODEL))).thenReturn(false);
 
@@ -324,23 +327,23 @@ public class KeyHandlerHelperTest {
                         keyCallbackContext))
                 .isEqualTo(ProgressEvent.progress(MOCK_MODEL, keyCallbackContext));
 
-        verify(keyApiHelper,times(2)).disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper, times(2)).disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient));
     }
 
     @Test
     public void testDisableKeyRetryFailed() {
         keyHandlerHelper =
                 new KeyHandlerHelper<>(TestConstants.MOCK_TYPE_NAME, keyApiHelper,
-                        eventualConsistencyHandlerHelper, keyTranslator,BACKOFF_STRATEGY);
+                        eventualConsistencyHandlerHelper, keyTranslator, BACKOFF_STRATEGY);
         when(keyApiHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient))).thenThrow(CfnNotFoundException.class);
         when(keyTranslator.getKeyEnabled(eq(MOCK_MODEL))).thenReturn(false);
 
         assertThat(keyHandlerHelper
                 .disableKeyIfNecessary(proxy, proxyKmsClient, null, MOCK_MODEL,
                         keyCallbackContext))
-                .isEqualTo(ProgressEvent.failed(MOCK_MODEL, keyCallbackContext,HandlerErrorCode.NotStabilized,"Exceeded attempts to wait"));
+                .isEqualTo(ProgressEvent.failed(MOCK_MODEL, keyCallbackContext, HandlerErrorCode.NotStabilized, "Exceeded attempts to wait"));
 
-        verify(keyApiHelper,atLeast(1)).disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper, atLeast(1)).disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient));
     }
 
     @Test

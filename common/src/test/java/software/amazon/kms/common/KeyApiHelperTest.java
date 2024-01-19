@@ -120,9 +120,9 @@ public class KeyApiHelperTest {
         final DisableKeyRequest disableKeyRequest = DisableKeyRequest.builder().build();
         doThrow(NotFoundException.class).when(proxy)
                 .injectCredentialsAndInvokeV2(same(disableKeyRequest), any());
-        try{
+        try {
             keyApiHelper.disableKey(disableKeyRequest, proxyKmsClient);
-        }catch(Exception e){
+        } catch (Exception e) {
             assertThat(e instanceof CfnNotFoundException);
         }
     }
@@ -173,9 +173,9 @@ public class KeyApiHelperTest {
                 EnableKeyRotationRequest.builder().build();
         doThrow(NotFoundException.class).when(proxy)
                 .injectCredentialsAndInvokeV2(same(enableKeyRotationRequest), any());
-        try{
+        try {
             keyApiHelper.enableKeyRotation(enableKeyRotationRequest, proxyKmsClient);
-        }catch(Exception e){
+        } catch (Exception e) {
             assertThat(e instanceof CfnNotFoundException);
         }
     }

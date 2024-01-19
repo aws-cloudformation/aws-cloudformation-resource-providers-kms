@@ -5,7 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 
 import com.google.common.collect.ImmutableSet;
@@ -24,7 +30,13 @@ import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
-import software.amazon.cloudformation.proxy.*;
+import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.Delay;
+import software.amazon.cloudformation.proxy.HandlerErrorCode;
+import software.amazon.cloudformation.proxy.OperationStatus;
+import software.amazon.cloudformation.proxy.ProgressEvent;
+import software.amazon.cloudformation.proxy.ProxyClient;
+import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import software.amazon.cloudformation.proxy.delay.CappedExponential;
 import software.amazon.kms.common.ClientBuilder;
 import software.amazon.kms.common.CreatableKeyHandlerHelper;
@@ -142,7 +154,7 @@ public class CreateHandlerTest {
             .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
                 eq(KEY_MODEL_WITH_DEFAULTS_SET),
                 eq(callbackContext))).thenReturn(inProgressEvent);
-        when(eventualConsistencyHandlerHelper.setRequestType(eq(inProgressEvent),eq(false)))
+        when(eventualConsistencyHandlerHelper.setRequestType(eq(inProgressEvent), eq(false)))
                 .thenReturn(inProgressEvent);
         when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
             .thenReturn(inProgressEvent);
@@ -183,9 +195,9 @@ public class CreateHandlerTest {
         // Mock out our rotation status update
         final EnableKeyRotationResponse enableKeyRotationResponse =
                 EnableKeyRotationResponse.builder().build();
-        when(
-                keyApiHelper
-                        .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient))).thenThrow(new CfnNotFoundException("AWS::KMS::Key", "keyId"))
+        when(keyApiHelper
+                .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenThrow(new CfnNotFoundException("AWS::KMS::Key", "keyId"))
                 .thenReturn(enableKeyRotationResponse);
 
         // Mock our create key call, disable key call, and final propagation
@@ -217,7 +229,6 @@ public class CreateHandlerTest {
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
                 .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_REDACTED));
 
-
         // Make sure we enabled rotation
         verify(keyApiHelper, times(2))
                 .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
@@ -243,9 +254,9 @@ public class CreateHandlerTest {
         // Mock out our rotation status update
         final EnableKeyRotationResponse enableKeyRotationResponse =
                 EnableKeyRotationResponse.builder().build();
-        when(
-                keyApiHelper
-                        .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient))).thenThrow(new CfnNotFoundException("AWS::KMS::Key","keyId"));
+        when(keyApiHelper
+                .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenThrow(new CfnNotFoundException("AWS::KMS::Key","keyId"));
 
         // Mock our create key call, disable key call, and final propagation
         final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
@@ -265,8 +276,8 @@ public class CreateHandlerTest {
         // Execute the create handler and make sure it returns the expected results
         assertThat(handler
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
-                .isEqualTo(ProgressEvent.failed(KEY_MODEL,callbackContext, HandlerErrorCode.NotStabilized,"Exceeded attempts to wait"));
-
+                .isEqualTo(ProgressEvent.failed(KEY_MODEL,callbackContext, HandlerErrorCode.NotStabilized,
+                        "Exceeded attempts to wait"));
 
         // Make sure we enabled rotation
         verify(keyApiHelper,atLeast(1))
@@ -290,9 +301,9 @@ public class CreateHandlerTest {
         // Mock out our rotation status update
         final EnableKeyRotationResponse enableKeyRotationResponse =
                 EnableKeyRotationResponse.builder().build();
-        when(
-                keyApiHelper
-                        .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient))).thenThrow(new CfnInvalidRequestException("AWS::KMS::Key"));
+        when(keyApiHelper
+                .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenThrow(new CfnInvalidRequestException("AWS::KMS::Key"));
 
         // Mock our create key call, disable key call, and final propagation
         final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
@@ -315,7 +326,6 @@ public class CreateHandlerTest {
                     .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER);
         }
         catch(Exception e){
-            System.out.println("Exception is "+e);
             assertThat( e instanceof CfnInvalidRequestException).isTrue();
         }
 
@@ -340,9 +350,9 @@ public class CreateHandlerTest {
         // Mock out our rotation status update
         final EnableKeyRotationResponse enableKeyRotationResponse =
                 EnableKeyRotationResponse.builder().build();
-        when(
-                keyApiHelper
-                        .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient))).thenThrow(CfnNotFoundException.class)
+        when(keyApiHelper
+                .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenThrow(CfnNotFoundException.class)
                 .thenReturn(enableKeyRotationResponse);
 
         // Mock our create key call, disable key call, and final propagation
@@ -432,7 +442,7 @@ public class CreateHandlerTest {
                 .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
                         eq(KEY_MODEL_EXTERNAL_ROTATION_DISABLED),
                         eq(callbackContext))).thenReturn(inProgressEvent);
-        when(eventualConsistencyHandlerHelper.setRequestType(eq(inProgressEvent),eq(false)))
+        when(eventualConsistencyHandlerHelper.setRequestType(eq(inProgressEvent), eq(false)))
                 .thenReturn(inProgressEvent);
         when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
                 .thenReturn(inProgressEvent);
