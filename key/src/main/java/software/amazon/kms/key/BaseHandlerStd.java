@@ -135,9 +135,9 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
                 .translateToServiceRequest(translator::enableKeyRotationRequest)
                     .backoffDelay(stabilizeDelay)
-                    .makeServiceCall((enableKeyRotationRequest, proxyClient1) -> {
+                    .makeServiceCall((enableKeyRotationRequest, enableKeyRotationProxyClient) -> {
                         try {
-                            return keyApiHelper.enableKeyRotation((EnableKeyRotationRequest) enableKeyRotationRequest, proxyClient1);
+                            return keyApiHelper.enableKeyRotation((EnableKeyRotationRequest) enableKeyRotationRequest, enableKeyRotationProxyClient);
                         } catch (Exception e) {
                             if (e instanceof CfnNotFoundException) {
                                 throw NotFoundException.builder()

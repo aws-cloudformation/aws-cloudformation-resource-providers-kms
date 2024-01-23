@@ -233,9 +233,9 @@ public class KeyHandlerHelper<M, C extends KeyCallbackContext, T extends KeyTran
             return proxy.initiate("kms::disable-key", proxyClient, model, callbackContext)
                 .translateToServiceRequest(keyTranslator::disableKeyRequest)
                     .backoffDelay(stabilizeDelay)
-                    .makeServiceCall((disableKeyRequest, proxyClient1) -> {
+                    .makeServiceCall((disableKeyRequest, disableKeyProxyClient) -> {
                         try {
-                            return keyApiHelper.disableKey((DisableKeyRequest) disableKeyRequest, proxyClient1);
+                            return keyApiHelper.disableKey((DisableKeyRequest) disableKeyRequest, disableKeyProxyClient);
                         } catch (Exception e) {
                             if (e instanceof CfnNotFoundException) {
                                 throw NotFoundException.builder()

@@ -6,7 +6,7 @@ public class EventualConsistencyHandlerHelper <M, C extends EventualConsistencyC
     // It may take up to 60 seconds for changes to propagate throughout the region for update
     // operation due to cache TTl set to 60 sec.
     public static final int EVENTUAL_CONSISTENCY_DELAY_SECONDS = 60;
-    //Eventual consistency delay for create & delete operation to 15 secs
+    // Eventual consistency delay for create & delete operation to 15 secs
     public static final int CREATE_DELETE_EVENTUAL_CONSISTENCY_DELAY_SECONDS = 15;
 
     /**
