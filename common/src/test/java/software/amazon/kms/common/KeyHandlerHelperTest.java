@@ -345,7 +345,7 @@ public class KeyHandlerHelperTest {
         when(keyTranslator.getKeyEnabled(eq(MOCK_MODEL))).thenReturn(false);
 
         assertThat(keyHandlerHelper.disableKeyIfNecessary(proxy, proxyKmsClient, null, MOCK_MODEL,
-                        keyCallbackContext))
+                keyCallbackContext))
                 .isEqualTo(ProgressEvent.failed(MOCK_MODEL, keyCallbackContext,
                         HandlerErrorCode.NotStabilized, NOT_STABILIZED_ERROR_MESSAGE));
 
@@ -364,11 +364,10 @@ public class KeyHandlerHelperTest {
 
         try {
             keyHandlerHelper.disableKeyIfNecessary(proxy, proxyKmsClient, null, MOCK_MODEL,
-                            keyCallbackContext);
+                    keyCallbackContext);
         } catch (Exception e) {
             assertThat(e).isInstanceOf(CfnInvalidRequestException.class);
         }
-
 
         verify(keyApiHelper, atLeast(1)).disableKey(any(DisableKeyRequest.class)
                 , eq(proxyKmsClient));

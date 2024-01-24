@@ -80,7 +80,7 @@ public class CreatableKeyHandlerHelperTest {
 
         assertThat(keyHandlerHelper
             .createKey(proxy, proxyKmsClient, MOCK_MODEL, keyCallbackContext, TestConstants.TAGS))
-            .isEqualTo(ProgressEvent.progress(MOCK_MODEL, keyCallbackContext));
+                .isEqualTo(ProgressEvent.progress(MOCK_MODEL, keyCallbackContext));
 
         verify(keyTranslator).setReadOnlyKeyMetadata(eq(MOCK_MODEL), eq(KEY_METADATA));
     }

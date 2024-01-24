@@ -22,9 +22,8 @@ public class EventualConsistencyHandlerHelper <M, C extends EventualConsistencyC
         callbackContext.setPropagationComplete(true);
         int delaySeconds = callbackContext.isUpdateRequest() ? EVENTUAL_CONSISTENCY_DELAY_SECONDS :
                 CREATE_DELETE_EVENTUAL_CONSISTENCY_DELAY_SECONDS;
-        return ProgressEvent.defaultInProgressHandler(callbackContext,
-                delaySeconds,
-            progressEvent.getResourceModel());
+        return ProgressEvent.defaultInProgressHandler(callbackContext, delaySeconds,
+                progressEvent.getResourceModel());
     }
 
     /**

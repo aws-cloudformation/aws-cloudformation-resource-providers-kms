@@ -41,9 +41,9 @@ public class CreateHandler extends BaseHandlerStd {
                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
                                  eventualConsistencyHandlerHelper,
                          final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper,
-                         final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper,final Delay stabilizeDelay) {
+                         final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper, final Delay stabilizeDelay) {
         super(clientBuilder, translator, keyApiHelper, eventualConsistencyHandlerHelper,
-                keyHandlerHelper, tagHelper,stabilizeDelay);
+                keyHandlerHelper, tagHelper, stabilizeDelay);
     }
 
     protected ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -62,7 +62,7 @@ public class CreateHandler extends BaseHandlerStd {
                 callbackContext))
             .then(progress -> keyHandlerHelper
                 .disableKeyIfNecessary(proxy, proxyClient, null, model, callbackContext))
-                .then(progress -> eventualConsistencyHandlerHelper.setRequestType(progress,false))
+                .then(progress -> eventualConsistencyHandlerHelper.setRequestType(progress, false))
             // Final propagation to make sure all updates are reflected
             .then(eventualConsistencyHandlerHelper::waitForChangesToPropagate)
             .then(progress -> ProgressEvent.defaultSuccessHandler(unsetWriteOnly(model)));

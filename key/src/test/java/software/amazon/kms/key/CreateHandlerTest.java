@@ -189,6 +189,7 @@ public class CreateHandlerTest {
         verifyZeroInteractions(keyHandlerHelper);
         verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
     }
+
     @Test
     public void handleRequest_SimpleSuccess_RetryEnableKeyRotation() {
 
@@ -256,7 +257,7 @@ public class CreateHandlerTest {
                 EnableKeyRotationResponse.builder().build();
         when(keyApiHelper
                 .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
-                .thenThrow(new CfnNotFoundException("AWS::KMS::Key","keyId"));
+                .thenThrow(new CfnNotFoundException("AWS::KMS::Key", "keyId"));
 
         // Mock our create key call, disable key call, and final propagation
         final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
@@ -276,11 +277,11 @@ public class CreateHandlerTest {
         // Execute the create handler and make sure it returns the expected results
         assertThat(handler
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
-                .isEqualTo(ProgressEvent.failed(KEY_MODEL,callbackContext, HandlerErrorCode.NotStabilized,
+                .isEqualTo(ProgressEvent.failed(KEY_MODEL, callbackContext, HandlerErrorCode.NotStabilized,
                         "Exceeded attempts to wait"));
 
         // Make sure we enabled rotation
-        verify(keyApiHelper,atLeast(1))
+        verify(keyApiHelper, atLeast(1))
                 .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
 
         // Make sure we called our helpers to create the key, disable the key if needed,
@@ -321,16 +322,15 @@ public class CreateHandlerTest {
                         .build();
 
         // Execute the create handler and make sure it returns the expected results
-        try{
+        try {
             handler
                     .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER);
-        }
-        catch(Exception e){
-            assertThat( e instanceof CfnInvalidRequestException).isTrue();
+        } catch (Exception e) {
+            assertThat(e instanceof CfnInvalidRequestException).isTrue();
         }
 
         // Make sure we enabled rotation
-        verify(keyApiHelper,atLeast(1))
+        verify(keyApiHelper, atLeast(1))
                 .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
 
         // Make sure we called our helpers to create the key, disable the key if needed,
@@ -344,6 +344,7 @@ public class CreateHandlerTest {
         verifyZeroInteractions(keyHandlerHelper);
         verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
     }
+
     @Test
     public void handleRequest_FailedDisableKey() {
 
@@ -360,7 +361,7 @@ public class CreateHandlerTest {
                 ProgressEvent.progress(KEY_MODEL_WITH_DEFAULTS_SET, callbackContext);
 
         final ProgressEvent<ResourceModel, CallbackContext> failedProgressEvent =
-                ProgressEvent.failed(KEY_MODEL_WITH_DEFAULTS_SET, callbackContext,HandlerErrorCode.NotStabilized,"Key Id not found");
+                ProgressEvent.failed(KEY_MODEL_WITH_DEFAULTS_SET, callbackContext, HandlerErrorCode.NotStabilized, "Key Id not found");
         when(keyHandlerHelper
                 .createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_WITH_DEFAULTS_SET),
                         eq(callbackContext),
@@ -378,13 +379,13 @@ public class CreateHandlerTest {
                         .build();
 
         // Execute the create handler and make sure it returns the expected results
-        final ProgressEvent<ResourceModel, CallbackContext> response=handler
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER);
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.FAILED);
 
         // Make sure we enabled rotation
-        verify(keyApiHelper,times(2))
+        verify(keyApiHelper, times(2))
                 .enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
 
         // Make sure we called our helpers to create the key, disable the key if needed,

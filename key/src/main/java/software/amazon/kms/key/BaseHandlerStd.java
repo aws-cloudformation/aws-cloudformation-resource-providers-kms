@@ -46,7 +46,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             new CreatableKeyHandlerHelper<>(ResourceModel.TYPE_NAME, keyApiHelper,
                 eventualConsistencyHandlerHelper, translator);
         this.tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
-        this.stabilizeDelay= keyHandlerHelper.BACKOFF_STRATEGY;
+        this.stabilizeDelay = keyHandlerHelper.BACKOFF_STRATEGY;
     }
 
     public BaseHandlerStd(final ClientBuilder clientBuilder,
@@ -62,7 +62,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
         this.keyHandlerHelper = keyHandlerHelper;
         this.tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
-        this.stabilizeDelay= keyHandlerHelper.BACKOFF_STRATEGY;
+        this.stabilizeDelay = keyHandlerHelper.BACKOFF_STRATEGY;
     }
 
     public BaseHandlerStd(final ClientBuilder clientBuilder,
@@ -79,7 +79,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
         this.keyHandlerHelper = keyHandlerHelper;
         this.tagHelper = tagHelper;
-        this.stabilizeDelay= keyHandlerHelper.BACKOFF_STRATEGY;
+        this.stabilizeDelay = keyHandlerHelper.BACKOFF_STRATEGY;
     }
 
     @VisibleForTesting
@@ -89,7 +89,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
                           final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
                                   eventualConsistencyHandlerHelper,
                           final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper,
-                          final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper,final Delay stabilizeDelay) {
+                          final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper, final Delay stabilizeDelay) {
         // Allows for mocking helpers in our unit tests
         this.clientBuilder = clientBuilder;
         this.translator = translator;
