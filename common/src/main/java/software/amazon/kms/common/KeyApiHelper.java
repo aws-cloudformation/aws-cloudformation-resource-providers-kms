@@ -45,7 +45,6 @@ public class KeyApiHelper extends AbstractKmsApiHelper {
 
     private static final String CREATE_KEY = "CreateKey";
     private static final String REPLICATE_KEY = "ReplicateKey";
-    private static final String DESCRIBE_KEY = "DescribeKey";
     private static final String DISABLE_KEY = "DisableKey";
     private static final String ENABLE_KEY = "EnableKey";
     private static final String DISABLE_KEY_ROTATION = "DisableKeyRotation";
@@ -72,13 +71,6 @@ public class KeyApiHelper extends AbstractKmsApiHelper {
         return wrapKmsExceptions(REPLICATE_KEY,
             () -> proxyClient.injectCredentialsAndInvokeV2(replicateKeyRequest,
                 proxyClient.client()::replicateKey));
-    }
-
-    public DescribeKeyResponse describeKey(final DescribeKeyRequest describeKeyRequest,
-                                           final ProxyClient<KmsClient> proxyClient) {
-        return wrapKmsExceptions(DESCRIBE_KEY,
-            () -> proxyClient.injectCredentialsAndInvokeV2(describeKeyRequest,
-                proxyClient.client()::describeKey));
     }
 
     public DisableKeyResponse disableKey(final DisableKeyRequest disableKeyRequest,
