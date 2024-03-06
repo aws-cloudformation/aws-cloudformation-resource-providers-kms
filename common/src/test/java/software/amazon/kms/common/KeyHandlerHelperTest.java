@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +29,7 @@ import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.DescribeKeyRequest;
 import software.amazon.awssdk.services.kms.model.DescribeKeyResponse;
 import software.amazon.awssdk.services.kms.model.DisableKeyRequest;
+import software.amazon.awssdk.services.kms.model.DisableKeyResponse;
 import software.amazon.awssdk.services.kms.model.EnableKeyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyRequest;
 import software.amazon.awssdk.services.kms.model.GetKeyPolicyResponse;
@@ -50,10 +53,13 @@ import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.Delay;
+import software.amazon.cloudformation.proxy.delay.CappedExponential;
 import software.amazon.cloudformation.proxy.HandlerErrorCode;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
+
 
 @ExtendWith(MockitoExtension.class)
 public class KeyHandlerHelperTest {
@@ -80,6 +86,9 @@ public class KeyHandlerHelperTest {
         .keyState(KeyState.PENDING_REPLICA_DELETION)
         .build();
 
+    private static final String NOT_STABILIZED_ERROR_MESSAGE = "Exceeded attempts to wait";
+
+    private static final String RESOURCE_NAME = "AWS::KMS::Key";
     @Mock
     private KmsClient kms;
 
@@ -97,6 +106,14 @@ public class KeyHandlerHelperTest {
     private KeyHandlerHelper<Object, KeyCallbackContext, KeyTranslator<Object>> keyHandlerHelper;
     private ProxyClient<KmsClient> proxyKmsClient;
     private KeyCallbackContext keyCallbackContext;
+
+    Delay BACKOFF_STRATEGY =
+            CappedExponential.of()
+                    .minDelay(Duration.ofSeconds(1))
+                    .maxDelay(Duration.ofSeconds(2))
+                    .powerBy(1.3)
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
 
     @BeforeEach
     public void setup() {
@@ -301,6 +318,62 @@ public class KeyHandlerHelperTest {
     }
 
     @Test
+    public void testDisableKeyRetry() {
+        keyHandlerHelper =
+                new KeyHandlerHelper<>(TestConstants.MOCK_TYPE_NAME, keyApiHelper,
+                        eventualConsistencyHandlerHelper, keyTranslator, null);
+        when(keyApiHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient)))
+                .thenThrow(CfnNotFoundException.class).thenReturn(DisableKeyResponse.builder().build());
+        when(keyTranslator.getKeyEnabled(eq(MOCK_MODEL))).thenReturn(false);
+
+        assertThat(keyHandlerHelper
+                .disableKeyIfNecessary(proxy, proxyKmsClient, null, MOCK_MODEL,
+                        keyCallbackContext))
+                .isEqualTo(ProgressEvent.progress(MOCK_MODEL, keyCallbackContext));
+
+        verify(keyApiHelper, times(2)).disableKey(any(DisableKeyRequest.class)
+                , eq(proxyKmsClient));
+    }
+
+    @Test
+    public void testDisableKeyRetryFailed() {
+        keyHandlerHelper =
+                new KeyHandlerHelper<>(TestConstants.MOCK_TYPE_NAME, keyApiHelper,
+                        eventualConsistencyHandlerHelper, keyTranslator, BACKOFF_STRATEGY);
+        when(keyApiHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient)))
+                .thenThrow(CfnNotFoundException.class);
+        when(keyTranslator.getKeyEnabled(eq(MOCK_MODEL))).thenReturn(false);
+
+        assertThat(keyHandlerHelper.disableKeyIfNecessary(proxy, proxyKmsClient, null, MOCK_MODEL,
+                keyCallbackContext))
+                .isEqualTo(ProgressEvent.failed(MOCK_MODEL, keyCallbackContext,
+                        HandlerErrorCode.NotStabilized, NOT_STABILIZED_ERROR_MESSAGE));
+
+        verify(keyApiHelper, atLeast(1)).disableKey(any(DisableKeyRequest.class)
+                , eq(proxyKmsClient));
+    }
+
+    @Test
+    public void testDisableKeyFailed() {
+        keyHandlerHelper =
+                new KeyHandlerHelper<>(TestConstants.MOCK_TYPE_NAME, keyApiHelper,
+                        eventualConsistencyHandlerHelper, keyTranslator, BACKOFF_STRATEGY);
+        when(keyApiHelper.disableKey(any(DisableKeyRequest.class), eq(proxyKmsClient)))
+                .thenThrow(new CfnInvalidRequestException(RESOURCE_NAME));
+        when(keyTranslator.getKeyEnabled(eq(MOCK_MODEL))).thenReturn(false);
+
+        try {
+            keyHandlerHelper.disableKeyIfNecessary(proxy, proxyKmsClient, null, MOCK_MODEL,
+                    keyCallbackContext);
+        } catch (Exception e) {
+            assertThat(e).isInstanceOf(CfnInvalidRequestException.class);
+        }
+
+        verify(keyApiHelper, atLeast(1)).disableKey(any(DisableKeyRequest.class)
+                , eq(proxyKmsClient));
+    }
+
+    @Test
     public void testRetrieveResourceTags() {
         final ListResourceTagsResponse listResourceTagsResponse = ListResourceTagsResponse.builder()
             .tags(TestConstants.SDK_TAGS)
@@ -409,6 +482,8 @@ public class KeyHandlerHelperTest {
 
         final ProgressEvent<Object, KeyCallbackContext> expectedProgressEvent =
             ProgressEvent.progress(MOCK_MODEL, keyCallbackContext);
+        when(eventualConsistencyHandlerHelper.setRequestType(eq(expectedProgressEvent),eq(false)))
+                .thenReturn(expectedProgressEvent);
         when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(expectedProgressEvent)))
             .thenReturn(expectedProgressEvent);
 

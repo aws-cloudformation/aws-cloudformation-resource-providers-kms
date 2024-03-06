@@ -13,4 +13,5 @@ import software.amazon.cloudformation.proxy.StdCallbackContext;
 @lombok.AllArgsConstructor
 public class EventualConsistencyCallbackContext extends StdCallbackContext {
     protected boolean propagationComplete;
+    protected boolean updateRequest = true;
 }

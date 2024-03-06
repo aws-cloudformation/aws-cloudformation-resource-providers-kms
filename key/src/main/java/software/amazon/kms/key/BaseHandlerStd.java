@@ -1,14 +1,19 @@
 package software.amazon.kms.key;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.function.Supplier;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.OriginType;
+import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
+import software.amazon.awssdk.services.kms.model.NotFoundException;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnUnauthorizedTaggingOperationException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
+import software.amazon.cloudformation.proxy.Delay;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
@@ -30,6 +35,8 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         eventualConsistencyHandlerHelper;
     final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper;
 
+    private final Delay stabilizeDelay;
+
     public BaseHandlerStd() {
         this.clientBuilder = new ClientBuilder();
         this.translator = new Translator();
@@ -39,6 +46,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
             new CreatableKeyHandlerHelper<>(ResourceModel.TYPE_NAME, keyApiHelper,
                 eventualConsistencyHandlerHelper, translator);
         this.tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
+        this.stabilizeDelay = keyHandlerHelper.BACKOFF_STRATEGY;
     }
 
     public BaseHandlerStd(final ClientBuilder clientBuilder,
@@ -54,6 +62,7 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
         this.keyHandlerHelper = keyHandlerHelper;
         this.tagHelper = new TagHelper<>(translator, keyApiHelper, keyHandlerHelper);
+        this.stabilizeDelay = keyHandlerHelper.BACKOFF_STRATEGY;
     }
 
     public BaseHandlerStd(final ClientBuilder clientBuilder,
@@ -70,7 +79,27 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
         this.keyHandlerHelper = keyHandlerHelper;
         this.tagHelper = tagHelper;
+        this.stabilizeDelay = keyHandlerHelper.BACKOFF_STRATEGY;
     }
+
+    @VisibleForTesting
+    public BaseHandlerStd(final ClientBuilder clientBuilder,
+                          final Translator translator,
+                          final KeyApiHelper keyApiHelper,
+                          final EventualConsistencyHandlerHelper<ResourceModel, CallbackContext>
+                                  eventualConsistencyHandlerHelper,
+                          final CreatableKeyHandlerHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> keyHandlerHelper,
+                          final TagHelper<ResourceModel, CallbackContext, CreatableKeyTranslator<ResourceModel>> tagHelper, final Delay stabilizeDelay) {
+        // Allows for mocking helpers in our unit tests
+        this.clientBuilder = clientBuilder;
+        this.translator = translator;
+        this.keyApiHelper = keyApiHelper;
+        this.eventualConsistencyHandlerHelper = eventualConsistencyHandlerHelper;
+        this.keyHandlerHelper = keyHandlerHelper;
+        this.tagHelper = tagHelper;
+        this.stabilizeDelay = stabilizeDelay != null ? stabilizeDelay : keyHandlerHelper.BACKOFF_STRATEGY;
+    }
+
 
     @Override
     public final ProgressEvent<ResourceModel, CallbackContext> handleRequest(
@@ -105,7 +134,21 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         if (!wasEnabled && shouldBeEnabled) {
             return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
                 .translateToServiceRequest(translator::enableKeyRotationRequest)
-                .makeServiceCall(keyApiHelper::enableKeyRotation)
+                    .backoffDelay(stabilizeDelay)
+                    .makeServiceCall((enableKeyRotationRequest, enableKeyRotationProxyClient) -> {
+                        try {
+                            return keyApiHelper.enableKeyRotation((EnableKeyRotationRequest) enableKeyRotationRequest, enableKeyRotationProxyClient);
+                        } catch (Exception e) {
+                            if (e instanceof CfnNotFoundException) {
+                                throw NotFoundException.builder()
+                                        .message(e.getMessage())
+                                        .cause(e.getCause())
+                                        .build();
+                            }
+                            throw e;
+                        }
+                    })
+                    .retryErrorFilter((_req, ex, _client, _model, _cb) -> ex instanceof NotFoundException)
                 .progress();
         } else if (wasEnabled && !shouldBeEnabled) {
             return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
