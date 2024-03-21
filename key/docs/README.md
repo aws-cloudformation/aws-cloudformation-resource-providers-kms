@@ -23,6 +23,7 @@ To declare this entity in your AWS CloudFormation template, use the following sy
         "<a href="#multiregion" title="MultiRegion">MultiRegion</a>" : <i>Boolean</i>,
         "<a href="#pendingwindowindays" title="PendingWindowInDays">PendingWindowInDays</a>" : <i>Integer</i>,
         "<a href="#tags" title="Tags">Tags</a>" : <i>[ <a href="tag.md">Tag</a>, ... ]</i>,
+        "<a href="#rotationperiodindays" title="RotationPeriodInDays">RotationPeriodInDays</a>" : <i>Integer</i>
     }
 }
 </pre>
@@ -44,6 +45,7 @@ Properties:
     <a href="#pendingwindowindays" title="PendingWindowInDays">PendingWindowInDays</a>: <i>Integer</i>
     <a href="#tags" title="Tags">Tags</a>: <i>
       - <a href="tag.md">Tag</a></i>
+    <a href="#rotationperiodindays" title="RotationPeriodInDays">RotationPeriodInDays</a>: <i>Integer</i>
 </pre>
 
 ## Properties
@@ -176,6 +178,16 @@ An array of key-value pairs to apply to this resource.
 _Required_: No
 
 _Type_: List of <a href="tag.md">Tag</a>
+
+_Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
+
+#### RotationPeriodInDays
+
+Specifies the number of days between each automatic rotation. Enter a value between 90 and 2560 days. If no value is specified, the default value is 365 days.
+
+_Required_: No
+
+_Type_: Integer
 
 _Update requires_: [No interruption](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-no-interrupt)
 

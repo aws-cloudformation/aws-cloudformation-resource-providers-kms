@@ -72,19 +72,19 @@ public class CreateHandlerTest {
     private static final ResourceModel KEY_MODEL_REDACTED = KEY_MODEL_BUILDER
         .pendingWindowInDays(null)
         .build();
+    private static final ResourceModel KEY_MODEL_ROTATION_IN_PERIOD_DAYS = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(100)
+        .build();
     private static final ResourceModel KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED = KEY_MODEL_BUILDER
         .keySpec(KeySpec.RSA_4096.toString())
         .build();
     private static final ResourceModel KEY_MODEL_EXTERNAL_ROTATION_ENABLED = KEY_MODEL_BUILDER
         .origin(OriginType.EXTERNAL.toString())
+        .keySpec(KeySpec.SYMMETRIC_DEFAULT.toString())
         .build();
     private static final ResourceModel KEY_MODEL_EXTERNAL_ROTATION_DISABLED = KEY_MODEL_BUILDER
         .enableKeyRotation(false)
         .origin(OriginType.EXTERNAL.toString())
-        .build();
-    private static final ResourceModel KEY_MODEL_EXTERNAL_REDACTED = KEY_MODEL_BUILDER
-        .origin(OriginType.EXTERNAL.toString())
-        .enableKeyRotation(false)
         .build();
 
     @Mock
@@ -458,7 +458,7 @@ public class CreateHandlerTest {
         // Execute the create handler and make sure it returns the expected results
         assertThat(handler
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
-                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_EXTERNAL_REDACTED));
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_EXTERNAL_ROTATION_DISABLED));
 
         // Make sure we called our helpers to create the key, disable the key if needed,
         // and to complete the final propagation
@@ -467,6 +467,55 @@ public class CreateHandlerTest {
                         eq(callbackContext), eq(TestConstants.TAGS));
         verify(keyHandlerHelper).disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
                 eq(KEY_MODEL_EXTERNAL_ROTATION_DISABLED), eq(callbackContext));
+        verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
+
+        // We shouldn't make any other calls
+        verifyNoMoreInteractions(keyApiHelper);
+        verifyZeroInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_RotationInPeriodDays() {
+        // Mock out our rotation status update
+        final EnableKeyRotationResponse enableKeyRotationResponse =
+                EnableKeyRotationResponse.builder().build();
+        when(keyApiHelper.enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenReturn(enableKeyRotationResponse);
+
+        // Mock our create key call, disable key call, and final propagation
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL_ROTATION_IN_PERIOD_DAYS, callbackContext);
+        when(keyHandlerHelper.createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                eq(callbackContext), eq(TestConstants.TAGS))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper.disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
+                eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext))).thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.setRequestType(eq(inProgressEvent), eq(false)))
+                .thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+                .thenReturn(inProgressEvent);
+
+        // Setup our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .desiredResourceState(KEY_MODEL_ROTATION_IN_PERIOD_DAYS)
+                        .desiredResourceTags(TestConstants.TAGS)
+                        .build();
+
+        // Execute the create handler and make sure it returns the expected results
+        assertThat(handler
+                .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_ROTATION_IN_PERIOD_DAYS));
+
+        // Make sure we enabled rotation
+        verify(keyApiHelper).enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
+
+        // Make sure we called our helpers to create the key, disable the key if needed,
+        // and to complete the final propagation
+        verify(keyHandlerHelper).createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                eq(callbackContext), eq(TestConstants.TAGS));
+        verify(keyHandlerHelper).disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
+                eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
         verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
 
         // We shouldn't make any other calls

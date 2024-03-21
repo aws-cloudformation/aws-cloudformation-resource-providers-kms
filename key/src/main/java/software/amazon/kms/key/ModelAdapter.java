@@ -110,6 +110,7 @@ public class ModelAdapter {
             .keySpec(model.getKeySpec())
             .multiRegion(model.getMultiRegion())
             .tags(model.getTags())
+            .rotationPeriodInDays(model.getRotationPeriodInDays())
             .build();
     }
 }

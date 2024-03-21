@@ -120,6 +120,7 @@ public class Translator extends CreatableKeyTranslator<ResourceModel> {
     public EnableKeyRotationRequest enableKeyRotationRequest(final ResourceModel model) {
         return EnableKeyRotationRequest.builder()
             .keyId(model.getKeyId())
+            .rotationPeriodInDays(model.getRotationPeriodInDays())
             .build();
     }
 
