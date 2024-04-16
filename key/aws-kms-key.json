@@ -138,7 +138,8 @@
   ],
   "writeOnlyProperties": [
     "/properties/PendingWindowInDays",
-    "/properties/BypassPolicyLockoutSafetyCheck"
+    "/properties/BypassPolicyLockoutSafetyCheck",
+    "/properties/RotationPeriodInDays"
   ],
   "tagging": {
     "taggable": true,

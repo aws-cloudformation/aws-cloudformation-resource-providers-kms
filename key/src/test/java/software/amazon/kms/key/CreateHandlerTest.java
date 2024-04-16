@@ -75,6 +75,10 @@ public class CreateHandlerTest {
     private static final ResourceModel KEY_MODEL_ROTATION_IN_PERIOD_DAYS = KEY_MODEL_BUILDER
         .rotationPeriodInDays(100)
         .build();
+
+    private static final ResourceModel KEY_MODEL_ROTATION_IN_PERIOD_DAYS_REDACTED = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(null)
+        .build();
     private static final ResourceModel KEY_MODEL_ASYMMETRIC_ROTATION_ENABLED = KEY_MODEL_BUILDER
         .keySpec(KeySpec.RSA_4096.toString())
         .build();
@@ -505,7 +509,7 @@ public class CreateHandlerTest {
         // Execute the create handler and make sure it returns the expected results
         assertThat(handler
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
-                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_ROTATION_IN_PERIOD_DAYS));
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_ROTATION_IN_PERIOD_DAYS_REDACTED));
 
         // Make sure we enabled rotation
         verify(keyApiHelper).enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));

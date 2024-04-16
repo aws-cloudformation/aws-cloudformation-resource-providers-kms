@@ -114,10 +114,15 @@ public class UpdateHandlerTest {
         .rotationPeriodInDays(100)
         .build();
     private static final ResourceModel KEY_MODEL_ROTATION_IN_PERIOD_DAYS_REDACTED = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(null)
         .pendingWindowInDays(null)
         .build();
     private static final ResourceModel KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS = KEY_MODEL_BUILDER
         .rotationPeriodInDays(100)
+        .build();
+
+    private static final ResourceModel KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS_REDACTED = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(null)
         .build();
     private static final ResourceModel KEY_MODEL_PREVIOUS_IMMUTABLE = KEY_MODEL_BUILDER
         .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
@@ -631,7 +636,7 @@ public class UpdateHandlerTest {
         // Execute the update handler and make sure it returns the expected results
         assertThat(handler
                 .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
-                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS));
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS_REDACTED));
 
         // Make sure enable key rotation is not called
         verify(keyApiHelper, never()).enableKeyRotation(any(EnableKeyRotationRequest.class),
