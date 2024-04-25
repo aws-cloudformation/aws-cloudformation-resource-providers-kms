@@ -119,6 +119,13 @@
       "description": "Skips (\"bypasses\") the key policy lockout safety check. The default value is false.",
       "type": "boolean",
       "default": false
+    },
+    "RotationPeriodInDays": {
+      "description": "Specifies the number of days between each automatic rotation. Enter a value between 90 and 2560 days. If no value is specified, the default value is 365 days.",
+      "type": "integer",
+      "minimum": 90,
+      "maximum": 2560,
+      "default": 365
     }
   },
   "additionalProperties": false,
@@ -131,7 +138,8 @@
   ],
   "writeOnlyProperties": [
     "/properties/PendingWindowInDays",
-    "/properties/BypassPolicyLockoutSafetyCheck"
+    "/properties/BypassPolicyLockoutSafetyCheck",
+    "/properties/RotationPeriodInDays"
   ],
   "tagging": {
     "taggable": true,

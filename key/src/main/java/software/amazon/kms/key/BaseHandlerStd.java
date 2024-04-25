@@ -131,7 +131,8 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
         final boolean shouldBeEnabled = model.getEnableKeyRotation();
         final boolean wasEnabled = previousModel != null && previousModel.getEnableKeyRotation();
 
-        if (!wasEnabled && shouldBeEnabled) {
+        if ((!wasEnabled && shouldBeEnabled) || ((wasEnabled && shouldBeEnabled) &&
+            (!Objects.equals(model.getRotationPeriodInDays(), previousModel.getRotationPeriodInDays())))) {
             return proxy.initiate("kms::update-key-rotation", proxyClient, model, callbackContext)
                 .translateToServiceRequest(translator::enableKeyRotationRequest)
                     .backoffDelay(stabilizeDelay)

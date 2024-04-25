@@ -20,6 +20,8 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.EnableKeyRotationRequest;
+import software.amazon.awssdk.services.kms.model.EnableKeyRotationResponse;
 import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.OriginType;
@@ -105,6 +107,22 @@ public class UpdateHandlerTest {
         .build();
     private static final ResourceModel KEY_MODEL_NO_POLICY_PREVIOUS = KEY_MODEL_NO_POLICY_BUILDER
         .enabled(false)
+        .build();
+    private static final ResourceModel KEY_MODEL_ROTATION_IN_PERIOD_DAYS= KEY_MODEL_BUILDER
+        .enableKeyRotation(true)
+        .enabled(true)
+        .rotationPeriodInDays(100)
+        .build();
+    private static final ResourceModel KEY_MODEL_ROTATION_IN_PERIOD_DAYS_REDACTED = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(null)
+        .pendingWindowInDays(null)
+        .build();
+    private static final ResourceModel KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(100)
+        .build();
+
+    private static final ResourceModel KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS_REDACTED = KEY_MODEL_BUILDER
+        .rotationPeriodInDays(null)
         .build();
     private static final ResourceModel KEY_MODEL_PREVIOUS_IMMUTABLE = KEY_MODEL_BUILDER
         .keyUsage(KeyUsageType.SIGN_VERIFY.toString())
@@ -494,5 +512,162 @@ public class UpdateHandlerTest {
         verifyZeroInteractions(keyApiHelper);
         verifyNoMoreInteractions(keyHandlerHelper);
         verifyZeroInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_RotationInPeriodDays() {
+        // Mock out our rotation status update
+        final EnableKeyRotationResponse enableKeyRotationResponse =
+                EnableKeyRotationResponse.builder().build();
+        when(keyApiHelper.enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient)))
+                .thenReturn(enableKeyRotationResponse);
+        // Mock out delegation to our helpers and make them return an IN_PROGRESS event
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL_ROTATION_IN_PERIOD_DAYS, callbackContext);
+        when(keyHandlerHelper.describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                eq(callbackContext), eq(false))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .enableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
+                        eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(true)))
+                .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
+                        eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .updateKeyDescription(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
+                        eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(callbackContext))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper.retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                eq(callbackContext), eq(false))).thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+                .thenReturn(inProgressEvent);
+
+        // Set up our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .awsPartition(TestConstants.AWS_PARTITION)
+                        .awsAccountId(TestConstants.ACCOUNT_ID)
+                        .previousResourceState(KEY_MODEL)
+                        .desiredResourceState(KEY_MODEL_ROTATION_IN_PERIOD_DAYS)
+                        .desiredResourceTags(TestConstants.TAGS)
+                        .previousResourceTags(TestConstants.PREVIOUS_TAGS)
+                        .build();
+
+        // Execute the update handler and make sure it returns the expected results
+        assertThat(handler
+                .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_ROTATION_IN_PERIOD_DAYS_REDACTED));
+
+        // Make sure we called enable key rotation
+        verify(keyApiHelper).enableKeyRotation(any(EnableKeyRotationRequest.class), eq(proxyKmsClient));
+
+        // Make sure we called our helpers with the correct parameters and did the final propagation
+        verify(keyHandlerHelper).describeKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                eq(callbackContext), eq(false));
+        verify(keyHandlerHelper)
+                .enableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
+                        eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(true));
+        verify(keyHandlerHelper)
+                .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
+                        eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
+        verify(keyHandlerHelper)
+                .updateKeyDescription(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL),
+                        eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
+        verify(keyHandlerHelper)
+                .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(callbackContext));
+        verify(keyHandlerHelper)
+                .retrieveResourceTags(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(callbackContext), eq(false));
+        verify(keyApiHelper)
+                .tagResource(any(TagResourceRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper).untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient));
+        verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
+
+        // We shouldn't call anything else
+        verifyZeroInteractions(keyApiHelper);
+        verifyNoMoreInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_UpdateRotationInPeriodDays() {
+        // Mock out delegation to our helpers and make them return an IN_PROGRESS event
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS, callbackContext);
+        when(keyHandlerHelper.describeKey(eq(proxy), eq(proxyKmsClient),
+                eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext),
+                eq(false))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .enableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(true)))
+                .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext)))
+                .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .updateKeyDescription(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext)))
+                .thenReturn(inProgressEvent);
+        when(keyHandlerHelper
+                .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext)))
+                .thenReturn(inProgressEvent);
+        when(keyHandlerHelper.retrieveResourceTags(eq(proxy), eq(proxyKmsClient),
+                eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(false)))
+                .thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+                .thenReturn(inProgressEvent);
+
+        // Set up our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .awsPartition(TestConstants.AWS_PARTITION)
+                        .awsAccountId(TestConstants.ACCOUNT_ID)
+                        .previousResourceState(KEY_MODEL_ROTATION_IN_PERIOD_DAYS)
+                        .desiredResourceState(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS)
+                        .desiredResourceTags(TestConstants.TAGS)
+                        .previousResourceTags(TestConstants.PREVIOUS_TAGS)
+                        .build();
+
+        // Execute the update handler and make sure it returns the expected results
+        assertThat(handler
+                .handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS_REDACTED));
+
+        // Make sure enable key rotation is not called
+        verify(keyApiHelper, never()).enableKeyRotation(any(EnableKeyRotationRequest.class),
+                eq(proxyKmsClient));
+
+        // Make sure we called our helpers with the correct parameters and did the final propagation
+        verify(keyHandlerHelper).describeKey(eq(proxy), eq(proxyKmsClient),
+                eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(false));
+        verify(keyHandlerHelper)
+                .enableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(true));
+        verify(keyHandlerHelper)
+                .disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
+        verify(keyHandlerHelper)
+                .updateKeyDescription(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
+        verify(keyHandlerHelper)
+                .updateKeyPolicy(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
+        verify(keyHandlerHelper)
+                .retrieveResourceTags(eq(proxy), eq(proxyKmsClient),
+                        eq(KEY_MODEL_UPDATE_WITH_SAME_ROTATION_IN_PERIOD_DAYS), eq(callbackContext), eq(false));
+        verify(keyApiHelper)
+                .tagResource(any(TagResourceRequest.class), eq(proxyKmsClient));
+        verify(keyApiHelper).untagResource(any(UntagResourceRequest.class), eq(proxyKmsClient));
+        verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
+
+        // We shouldn't call anything else
+        verifyZeroInteractions(keyApiHelper);
+        verifyNoMoreInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
     }
 }
