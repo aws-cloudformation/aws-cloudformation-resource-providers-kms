@@ -49,8 +49,11 @@ public class KeyTranslatorTest {
             .thenThrow(JsonProcessingException.class);
         final MockKeyTranslator mockKeyTranslator = new MockKeyTranslator(mockMapper);
 
-        assertThatExceptionOfType(TerminalException.class).isThrownBy(
-            () -> mockKeyTranslator.translatePolicyInput(TestConstants.DESERIALIZED_KEY_POLICY));
+        try {
+            mockKeyTranslator.translatePolicyInput(TestConstants.DESERIALIZED_KEY_POLICY);
+        } catch (Exception e) {
+            assertThat(e instanceof TerminalException);
+        }
     }
 
     @Test

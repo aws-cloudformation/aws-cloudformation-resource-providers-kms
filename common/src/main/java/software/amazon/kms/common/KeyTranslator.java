@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,6 +39,24 @@ import software.amazon.cloudformation.exceptions.TerminalException;
 public abstract class KeyTranslator<M> {
     protected static final String DEFAULT_POLICY_NAME = "default";
     protected static final int LIST_KEYS_PAGE_SIZE = 50;
+
+    /** This is the default key policy from aws-kme-key.json */
+    public static String DEFAULT_KEY_POLICY_FROM_JSON = "{" +
+            "\n" +
+            "    \"Version\": \"2012-10-17\",\n" +
+            "    \"Id\": \"key-default\",\n" +
+            "    \"Statement\": [\n" +
+            "        {\n" +
+            "            \"Sid\": \"Enable IAM User Permissions\",\n" +
+            "            \"Effect\": \"Allow\",\n" +
+            "            \"Principal\": {\n" +
+            "                \"AWS\": \"arn:<partition>:iam::<account-id>:root\"\n" +
+            "            },\n" +
+            "            \"Action\": \"kms:*\",\n" +
+            "            \"Resource\": \"*\"\n" +
+            "        }\n" +
+            "    ]\n" +
+            "}";
 
     private final ObjectMapper objectMapper;
 
@@ -170,15 +189,17 @@ public abstract class KeyTranslator<M> {
     public String translatePolicyInput(final Object policy) {
         // Key Policy can be specified as either a string or an object (JSON)
         // Convert it to a string so it can be used in our API calls
+        final String policyString;
         if (policy instanceof Map) {
             try {
-                return objectMapper.writeValueAsString(policy);
+                policyString = new ObjectMapper().writeValueAsString(policy);
             } catch (final JsonProcessingException e) {
                 throw new TerminalException(e);
             }
+        } else {
+            policyString = (String) policy;
         }
-
-        return (String) policy;
+        return (Objects.equals(policyString, DEFAULT_KEY_POLICY_FROM_JSON)) ? "" : policyString;
     }
 
     public Map<String, Object> deserializeKeyPolicy(final String keyPolicy) {

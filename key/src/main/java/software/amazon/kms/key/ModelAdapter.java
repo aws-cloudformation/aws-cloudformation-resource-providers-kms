@@ -1,6 +1,7 @@
 package software.amazon.kms.key;
 
 import java.util.Map;
+import java.util.Objects;
 
 import com.amazonaws.util.StringUtils;
 
@@ -11,6 +12,8 @@ import software.amazon.awssdk.services.kms.model.KeySpec;
 import software.amazon.awssdk.services.kms.model.KeyUsageType;
 import software.amazon.awssdk.services.kms.model.OriginType;
 import software.amazon.cloudformation.exceptions.TerminalException;
+
+import static software.amazon.kms.common.KeyTranslator.DEFAULT_KEY_POLICY_FROM_JSON;
 
 public class ModelAdapter {
     private static final String DEFAULT_DESCRIPTION = "";
@@ -81,14 +84,17 @@ public class ModelAdapter {
     public static String translatePolicyInput(final Object policy) {
         // Key Policy can be specified as either a string or an object (JSON)
         // Convert it to a string, so it can be used in our API calls
+        final String policyString;
         if (policy instanceof Map) {
             try {
-                return new ObjectMapper().writeValueAsString(policy);
+                policyString = new ObjectMapper().writeValueAsString(policy);
             } catch (final JsonProcessingException e) {
                 throw new TerminalException(e);
             }
+        } else {
+            policyString = (String) policy;
         }
-        return (String) policy;
+        return (Objects.equals(policyString, DEFAULT_KEY_POLICY_FROM_JSON)) ? "" : policyString;
     }
 
     /**
