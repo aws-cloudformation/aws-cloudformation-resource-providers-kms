@@ -40,7 +40,7 @@ public abstract class KeyTranslator<M> {
     protected static final String DEFAULT_POLICY_NAME = "default";
     protected static final int LIST_KEYS_PAGE_SIZE = 50;
 
-    /** This is the default key policy from aws-kme-key.json */
+    /** This is the default key policy from aws-kms-key.json */
     public static String DEFAULT_KEY_POLICY_FROM_JSON = "{" +
             "\n" +
             "    \"Version\": \"2012-10-17\",\n" +
@@ -192,7 +192,7 @@ public abstract class KeyTranslator<M> {
         final String policyString;
         if (policy instanceof Map) {
             try {
-                policyString = new ObjectMapper().writeValueAsString(policy);
+                policyString = objectMapper.writeValueAsString(policy);
             } catch (final JsonProcessingException e) {
                 throw new TerminalException(e);
             }
