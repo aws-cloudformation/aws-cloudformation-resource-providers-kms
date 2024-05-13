@@ -46,6 +46,23 @@ public class TestConstants {
             "    ]\n" +
             "}";
 
+    public static String DEFAULT_KEY_POLICY_FROM_JSON = "{" +
+            "\n" +
+            "    \"Version\": \"2012-10-17\",\n" +
+            "    \"Id\": \"key-default\",\n" +
+            "    \"Statement\": [\n" +
+            "        {\n" +
+            "            \"Sid\": \"Enable IAM User Permissions\",\n" +
+            "            \"Effect\": \"Allow\",\n" +
+            "            \"Principal\": {\n" +
+            "                \"AWS\": \"arn:<partition>:iam::<account-id>:root\"\n" +
+            "            },\n" +
+            "            \"Action\": \"kms:*\",\n" +
+            "            \"Resource\": \"*\"\n" +
+            "        }\n" +
+            "    ]\n" +
+            "}";
+
     // Tag related test constants
     public static final Map<String, String> TAGS = new ImmutableMap.Builder<String, String>()
         .put("Key1", "Value1")

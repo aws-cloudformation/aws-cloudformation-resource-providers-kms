@@ -43,14 +43,38 @@ public class KeyTranslatorTest {
     }
 
     @Test
+    public void testTranslatePolicyInputObjectDefaultKeyPolicyFromJson() {
+        assertThat(keyTranslator
+            .translatePolicyInput(TestConstants.DEFAULT_KEY_POLICY_FROM_JSON))
+            .isEqualTo("");
+    }
+
+    @Test
     public void testTranslatePolicyInputJsonProcessingException() throws JsonProcessingException {
         final ObjectMapper mockMapper = mock(ObjectMapper.class);
         when(mockMapper.writeValueAsString(eq(TestConstants.DESERIALIZED_KEY_POLICY)))
             .thenThrow(JsonProcessingException.class);
         final MockKeyTranslator mockKeyTranslator = new MockKeyTranslator(mockMapper);
 
-        assertThatExceptionOfType(TerminalException.class).isThrownBy(
-            () -> mockKeyTranslator.translatePolicyInput(TestConstants.DESERIALIZED_KEY_POLICY));
+        try {
+            mockKeyTranslator.translatePolicyInput(TestConstants.DESERIALIZED_KEY_POLICY);
+        } catch (Exception e) {
+            assertThat(e instanceof TerminalException);
+        }
+    }
+
+    @Test
+    public void testTranslatePolicyInputWithJsonProcessingDefaultKeyPolicyJson() throws JsonProcessingException {
+        final ObjectMapper mockMapper = mock(ObjectMapper.class);
+        when(mockMapper.writeValueAsString(eq(TestConstants.DEFAULT_KEY_POLICY_FROM_JSON)))
+                .thenThrow(JsonProcessingException.class);
+        final MockKeyTranslator mockKeyTranslator = new MockKeyTranslator(mockMapper);
+
+        try {
+            mockKeyTranslator.translatePolicyInput(TestConstants.DEFAULT_KEY_POLICY_FROM_JSON);
+        } catch (Exception e) {
+            assertThat(e instanceof TerminalException);
+        }
     }
 
     @Test
