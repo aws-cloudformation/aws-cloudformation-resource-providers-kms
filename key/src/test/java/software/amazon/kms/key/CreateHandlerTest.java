@@ -90,6 +90,11 @@ public class CreateHandlerTest {
         .enableKeyRotation(false)
         .origin(OriginType.EXTERNAL.toString())
         .build();
+    private static final ResourceModel KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT = KEY_MODEL_BUILDER
+        .keySpec(KeySpec.ECC_NIST_P256.toString())
+        .keyUsage(KeyUsageType.KEY_AGREEMENT.toString())
+        .origin(OriginType.AWS_KMS.toString())
+        .build();
 
     @Mock
     KmsClient kms;
@@ -520,6 +525,46 @@ public class CreateHandlerTest {
                 eq(callbackContext), eq(TestConstants.TAGS));
         verify(keyHandlerHelper).disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
                 eq(KEY_MODEL_ROTATION_IN_PERIOD_DAYS), eq(callbackContext));
+        verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
+
+        // We shouldn't make any other calls
+        verifyNoMoreInteractions(keyApiHelper);
+        verifyZeroInteractions(keyHandlerHelper);
+        verifyNoMoreInteractions(eventualConsistencyHandlerHelper);
+    }
+
+    @Test
+    public void handleRequest_AsymmetricKeyAgreement() {
+        // Mock our create key call, disable key call, and final propagation
+        final ProgressEvent<ResourceModel, CallbackContext> inProgressEvent =
+                ProgressEvent.progress(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT, callbackContext);
+        when(keyHandlerHelper.createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT),
+                eq(callbackContext), eq(TestConstants.TAGS))).thenReturn(inProgressEvent);
+        when(keyHandlerHelper.disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
+                eq(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT), eq(callbackContext))).thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.setRequestType(eq(inProgressEvent), eq(false)))
+                .thenReturn(inProgressEvent);
+        when(eventualConsistencyHandlerHelper.waitForChangesToPropagate(eq(inProgressEvent)))
+                .thenReturn(inProgressEvent);
+
+        // Setup our request
+        final ResourceHandlerRequest<ResourceModel> request =
+                ResourceHandlerRequest.<ResourceModel>builder()
+                        .desiredResourceState(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT)
+                        .desiredResourceTags(TestConstants.TAGS)
+                        .build();
+
+        // Execute the create handler and make sure it returns the expected results
+        assertThat(handler.handleRequest(proxy, request, callbackContext, proxyKmsClient, TestConstants.LOGGER))
+                .isEqualTo(ProgressEvent.defaultSuccessHandler(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT));
+
+
+        // Make sure we called our helpers to create the key, disable the key if needed,
+        // and to complete the final propagation
+        verify(keyHandlerHelper).createKey(eq(proxy), eq(proxyKmsClient), eq(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT),
+                eq(callbackContext), eq(TestConstants.TAGS));
+        verify(keyHandlerHelper).disableKeyIfNecessary(eq(proxy), eq(proxyKmsClient), isNull(),
+                eq(KEY_MODEL_ASYMMETRIC_KEY_AGREEMENT), eq(callbackContext));
         verify(eventualConsistencyHandlerHelper).waitForChangesToPropagate(eq(inProgressEvent));
 
         // We shouldn't make any other calls
