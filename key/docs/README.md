@@ -123,7 +123,7 @@ _Required_: No
 
 _Type_: String
 
-_Allowed Values_: <code>ENCRYPT_DECRYPT</code> | <code>SIGN_VERIFY</code> | <code>GENERATE_VERIFY_MAC</code>
+_Allowed Values_: <code>ENCRYPT_DECRYPT</code> | <code>SIGN_VERIFY</code> | <code>GENERATE_VERIFY_MAC</code> | <code>KEY_AGREEMENT</code>
 
 _Update requires_: [Replacement](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-update-behaviors.html#update-replacement)
 
